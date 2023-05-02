@@ -64,6 +64,53 @@ func TestTransactionRootAndProof(t *testing.T) {
 	})
 }
 
+func TestTransactionRootAndProof16967767(t *testing.T) {
+
+	trie := NewTrie()
+
+	txs := TransactionsJSON16967767(t)
+
+	for i, tx := range txs {
+		// key is the encoding of the index as the unsigned integer type
+		key, err := rlp.EncodeToBytes(uint(i))
+		require.NoError(t, err)
+
+		transaction := FromEthTransaction(tx)
+
+		// value is the RLP encoding of a transaction
+		rlp, err := transaction.GetRLP()
+		require.NoError(t, err)
+
+		trie.Put(key, rlp)
+	}
+
+	// the transaction root for block 16967767
+	// https://api.etherscan.io/api?module=proxy&action=eth_getBlockByNumber&tag=0x102e857&boolean=true&apikey=YourApiKeyToken
+	transactionRoot, err := hex.DecodeString("18a2411838779d924b496626d2a3202721454fa4eaeaf8693455d0788891f3d8")
+	require.NoError(t, err)
+
+	t.Run("merkle root hash should match with 16967767's transactionRoot", func(t *testing.T) {
+		// transaction root should match with block 16967767's transactionRoot
+		require.Equal(t, transactionRoot, trie.Hash())
+	})
+
+	t.Run("a merkle proof for a certain transaction can be verified by the offical trie implementation", func(t *testing.T) {
+		key, err := rlp.EncodeToBytes(uint(30))
+		require.NoError(t, err)
+
+		proof, found := trie.Prove(key)
+		require.Equal(t, true, found)
+
+		txRLP, err := VerifyProof(transactionRoot, key, proof)
+		require.NoError(t, err)
+
+		// verify that if the verification passes, it returns the RLP encoded transaction
+		rlp, err := FromEthTransaction(txs[30]).GetRLP()
+		require.NoError(t, err)
+		require.Equal(t, rlp, txRLP)
+	})
+}
+
 func TestTransactionFromJSON(t *testing.T) {
 	tx := TransactionJSON(t)
 	require.Equal(t, uint64(0x144), tx.Nonce())
@@ -118,6 +165,17 @@ func TransactionJSON(t *testing.T) *types.Transaction {
 
 func TransactionsJSON(t *testing.T) []*types.Transaction {
 	jsonFile, err := os.Open("transactions.json")
+	defer jsonFile.Close()
+	require.NoError(t, err)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+	var txs []*types.Transaction
+	json.Unmarshal(byteValue, &txs)
+	return txs
+}
+
+func TransactionsJSON16967767(t *testing.T) []*types.Transaction {
+	jsonFile, err := os.Open("transactions_16967767.json")
 	defer jsonFile.Close()
 	require.NoError(t, err)
 	byteValue, err := ioutil.ReadAll(jsonFile)
