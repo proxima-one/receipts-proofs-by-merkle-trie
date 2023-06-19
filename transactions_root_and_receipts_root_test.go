@@ -13,6 +13,7 @@ import (
   "flag"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -95,6 +96,15 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 //     fmt.Println("err:", err)
 //     fmt.Println("receipt:", receipt)
     require.NoError(t, err)
+		// fmt.Println("Logs:", receipt.Logs)
+		for _, log := range receipt.Logs {
+			fmt.Println("Address:", log.Address.Hex())
+			fmt.Println("Data:", hexutil.Encode(log.Data))
+
+			for _, topic := range log.Topics {
+				fmt.Println("Topic:", topic.Hex())
+			}
+		}
 
 //     fmt.Println("Transaction Receipt:", receipt)
     
@@ -217,3 +227,4 @@ func TransactionsJSONFromFile(t *testing.T, fileName string) []*types.Transactio
 //     TransactionIndex:  r.TransactionIndex,
 // 	}
 // }
+

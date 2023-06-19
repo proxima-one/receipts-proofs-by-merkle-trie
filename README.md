@@ -1,5 +1,13 @@
 ![Go](https://github.com/zhangchiqing/merkle-patricia-trie/workflows/Go/badge.svg)
 
+## Run new tests
+
+```golang
+go test -run TestTransactionsRootAndReceiptsRootAndProof -v -blockNumber=10467211
+
+go test -run TestRpcTransactionsRootAndReceiptsRootAndProof -v -blockNumber=10467211
+```
+
 ## Intro
 This is a simplified implementation of Ethereum's modified Merkle Patricia Trie based on the [Ethereum's yellow paper](https://ethereum.github.io/yellowpaper/paper.pdf). It's written in golang.
 
