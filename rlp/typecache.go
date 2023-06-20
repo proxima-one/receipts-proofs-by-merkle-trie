@@ -59,11 +59,6 @@ func newTypeCache() *typeCache {
 	return c
 }
 
-func cachedDecoder(typ reflect.Type) (decoder, error) {
-	info := theTC.info(typ)
-	return info.decoder, info.decoderErr
-}
-
 func cachedWriter(typ reflect.Type) (writer, error) {
 	info := theTC.info(typ)
 	return info.writer, info.writerErr
@@ -179,7 +174,7 @@ func (e structFieldError) Error() string {
 }
 
 func (i *typeinfo) generate(typ reflect.Type, tags rlpstruct.Tags) {
-	i.decoder, i.decoderErr = makeDecoder(typ, tags)
+// 	i.decoder, i.decoderErr = makeDecoder(typ, tags)
 	i.writer, i.writerErr = makeWriter(typ, tags)
 }
 

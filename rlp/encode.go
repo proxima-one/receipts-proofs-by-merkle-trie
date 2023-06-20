@@ -22,9 +22,32 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+  "sync"
 
 	"merkle-patrica-trie/rlp/internal/rlpstruct"
 	"github.com/holiman/uint256"
+)
+
+var (
+	ErrExpectedString   = errors.New("rlp: expected String or Byte")
+	ErrExpectedList     = errors.New("rlp: expected List")
+	ErrCanonInt         = errors.New("rlp: non-canonical integer format")
+	ErrCanonSize        = errors.New("rlp: non-canonical size information")
+	ErrElemTooLarge     = errors.New("rlp: element is larger than containing list")
+	ErrValueTooLarge    = errors.New("rlp: value size exceeds available input length")
+	ErrMoreThanOneValue = errors.New("rlp: input contains more than one value")
+
+	// internal errors
+	errNotInList     = errors.New("rlp: call of ListEnd outside of any list")
+	errNotAtEOL      = errors.New("rlp: call of ListEnd not positioned at EOL")
+	errUintOverflow  = errors.New("rlp: uint overflow")
+	errNoPointer     = errors.New("rlp: interface given to Decode must be a pointer")
+	errDecodeIntoNil = errors.New("rlp: pointer given to Decode must not be nil")
+	errUint256Large  = errors.New("rlp: value too large for uint256")
+
+	streamPool = sync.Pool{
+		New: func() interface{} { return new(Stream) },
+	}
 )
 
 var (
@@ -134,6 +157,63 @@ func puthead(buf []byte, smalltag, largetag byte, size uint64) int {
 }
 
 var encoderInterface = reflect.TypeOf(new(Encoder)).Elem()
+
+// Stream can be used for piecemeal decoding of an input stream. This
+// is useful if the input is very large or if the decoding rules for a
+// type depend on the input structure. Stream does not keep an
+// internal buffer. After decoding a value, the input reader will be
+// positioned just before the type information for the next value.
+//
+// When decoding a list and the input position reaches the declared
+// length of the list, all operations will return error EOL.
+// The end of the list must be acknowledged using ListEnd to continue
+// reading the enclosing list.
+//
+// Stream is not safe for concurrent use.
+type Stream struct {
+	r ByteReader
+
+	remaining uint64   // number of bytes remaining to be read from r
+	size      uint64   // size of value ahead
+	kinderr   error    // error from last readKind
+	stack     []uint64 // list sizes
+	uintbuf   [32]byte // auxiliary buffer for integer decoding
+	kind      Kind     // kind of value ahead
+	byteval   byte     // value of single byte in type tag
+	limited   bool     // true if input limit is in effect
+}
+
+// Decoder is implemented by types that require custom RLP decoding rules or need to decode
+// into private fields.
+//
+// The DecodeRLP method should read one value from the given Stream. It is not forbidden to
+// read less or more, but it might be confusing.
+type Decoder interface {
+	DecodeRLP(*Stream) error
+}
+
+// Kind represents the kind of value contained in an RLP stream.
+type Kind int8
+
+const (
+	Byte Kind = iota
+	String
+	List
+)
+
+// ByteReader must be implemented by any input reader for a Stream. It
+// is implemented by e.g. bufio.Reader and bytes.Reader.
+type ByteReader interface {
+	io.Reader
+	io.ByteReader
+}
+
+// RawValue represents an encoded RLP value and can be used to delay
+// RLP decoding or to precompute an encoding. Note that the decoder does
+// not verify whether the content of RawValues is valid RLP.
+type RawValue []byte
+
+var rawValueType = reflect.TypeOf(RawValue{})
 
 // makeWriter creates a writer function for the given type.
 func makeWriter(typ reflect.Type, ts rlpstruct.Tags) (writer, error) {

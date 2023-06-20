@@ -22,6 +22,14 @@ package rlp
 import (
 	"reflect"
 	"unsafe"
+  "math/big"
+  "github.com/holiman/uint256"
+)
+
+var (
+	decoderInterface = reflect.TypeOf(new(Decoder)).Elem()
+	bigInt           = reflect.TypeOf(big.Int{})
+	u256Int          = reflect.TypeOf(uint256.Int{})
 )
 
 // byteArrayBytes returns a slice of the byte array v.
