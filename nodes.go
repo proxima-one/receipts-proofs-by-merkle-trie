@@ -1,6 +1,8 @@
 package main
 
-import "github.com/ethereum/go-ethereum/rlp"
+import (
+	"merkle-patrica-trie/rlp"
+)
 
 type Node interface {
 	Hash() []byte // common.Hash

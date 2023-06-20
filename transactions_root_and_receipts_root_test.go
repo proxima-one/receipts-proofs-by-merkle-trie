@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
+	"merkle-patrica-trie/rlp"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
   "github.com/joho/godotenv"
@@ -188,7 +188,7 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 	})
 }
 
-func TransactionsReceiptsJSON(t *testing.T, fileName string) []*types.Receipt {
+func TransactionsReceiptsJSONFromFile(t *testing.T, fileName string) []*types.Receipt {
 	jsonFile, err := os.Open(fileName)
 	defer jsonFile.Close()
 	require.NoError(t, err)

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
+	"merkle-patrica-trie/rlp"
 	"github.com/stretchr/testify/require"
 )
 
