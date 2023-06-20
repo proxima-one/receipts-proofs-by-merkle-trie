@@ -185,21 +185,6 @@ func TransactionsJSON16967767(t *testing.T) []*types.Transaction {
 	return txs
 }
 
-func FromEthTransaction(t *types.Transaction) *Transaction {
-	v, r, s := t.RawSignatureValues()
-	return &Transaction{
-		AccountNonce: t.Nonce(),
-		Price:        t.GasPrice(),
-		GasLimit:     t.Gas(),
-		Recipient:    t.To(),
-		Amount:       t.Value(),
-		Payload:      t.Data(),
-		V:            v,
-		R:            r,
-		S:            s,
-	}
-}
-
 func TestTrieWithOneTx(t *testing.T) {
 	key, err := rlp.EncodeToBytes(uint(0))
 	require.NoError(t, err)
@@ -299,4 +284,19 @@ func Test130Items(t *testing.T) {
 	}
 
 	fmt.Printf("root: %x\n", trie.Hash())
+}
+
+func FromEthTransaction(t *types.Transaction) *Transaction {
+	v, r, s := t.RawSignatureValues()
+	return &Transaction{
+		AccountNonce: t.Nonce(),
+		Price:        t.GasPrice(),
+		GasLimit:     t.Gas(),
+		Recipient:    t.To(),
+		Amount:       t.Value(),
+		Payload:      t.Data(),
+		V:            v,
+		R:            r,
+		S:            s,
+	}
 }

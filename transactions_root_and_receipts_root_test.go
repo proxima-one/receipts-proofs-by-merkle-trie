@@ -122,7 +122,7 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
 	transactionsTrie := NewTrie()
 
- 	txs := TransactionsJSONFromFile(t, fileName)
+ 	txs := TransactionsFromJSON(t, fileName)
 
  	for i, tx := range txs {
 // 	for i, tx := range block.Transactions() {
@@ -197,17 +197,6 @@ func TransactionsReceiptsJSONFromFile(t *testing.T, fileName string) []*types.Re
 	var receipts []*types.Receipt
 	json.Unmarshal(byteValue, &receipts)
 	return receipts
-}
-
-func TransactionsJSONFromFile(t *testing.T, fileName string) []*types.Transaction {
-	jsonFile, err := os.Open(fileName)
-	defer jsonFile.Close()
-	require.NoError(t, err)
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	require.NoError(t, err)
-	var txs []*types.Transaction
-	json.Unmarshal(byteValue, &txs)
-	return txs
 }
 
 // func FromEthTransactionReceipt(r *types.Receipt) *Receipt {

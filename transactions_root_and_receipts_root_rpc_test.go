@@ -60,81 +60,87 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
     txData := tx.(map[string]interface{})
     transactionsHashes = append(transactionsHashes, txData["hash"].(string))
   }
-  fmt.Println("TransactionsHashes:", transactionsHashes)
+//   fmt.Println("TransactionsHashes:", transactionsHashes)
 
   transactions := make([]map[string]interface{}, 0)
-
-  var receipts []*types.Receipt
+  receipts := make([]map[string]interface{}, 0)
 
   transactionsCount := len(rpcTransactions)
   fmt.Println("transactionsCount:", transactionsCount)
 
   for _, tx := range rpcTransactions {
-    txDict := make(map[string]interface{})
+    minimizedTx := make(map[string]interface{})
     txData := tx.(map[string]interface{})
 
 //     fmt.Println("Transaction hash:", txData["hash"].(string))
 
-    txDict["gas"] = txData["gas"]
-    txDict["gasPrice"] = txData["gasPrice"]
-    txDict["input"] = txData["input"]
-    txDict["nonce"] = txData["nonce"]
-    txDict["v"] = txData["v"]
-    txDict["r"] = txData["r"]
-    txDict["s"] = txData["s"]
-    txDict["to"] = txData["to"]
-    txDict["value"] = txData["value"]
+    minimizedTx["gas"] = txData["gas"]
+    minimizedTx["gasPrice"] = txData["gasPrice"]
+    minimizedTx["input"] = txData["input"]
+    minimizedTx["nonce"] = txData["nonce"]
+    minimizedTx["v"] = txData["v"]
+    minimizedTx["r"] = txData["r"]
+    minimizedTx["s"] = txData["s"]
+    minimizedTx["to"] = txData["to"]
+    minimizedTx["value"] = txData["value"]
 
-    transactions = append(transactions, txDict)
+//     fmt.Println("Minimized Transaction:", minimizedTx)
 
-    var receipt *types.Receipt
+    transactions = append(transactions, minimizedTx)
+
+    var receipt map[string]interface{}
     rpcClient.CallContext(context.Background(), &receipt, "eth_getTransactionReceipt", common.HexToHash(txData["hash"].(string)))
 
 //     fmt.Println("Transaction Receipt:", receipt)
 
-    receipts = append(receipts, receipt)
+    minimizedReceipt := make(map[string]interface{})
+
+    minimizedReceipt["status"] = receipt["status"]
+    minimizedReceipt["cumulativeGasUsed"] = receipt["cumulativeGasUsed"]
+    minimizedReceipt["logsBloom"] = receipt["logsBloom"]
+    minimizedReceipt["transactionHash"] = receipt["transactionHash"]
+    minimizedReceipt["gasUsed"] = receipt["gasUsed"]
+
+    minimizedlogs := make([]map[string]interface{}, 0)
+    for _, log := range receipt["logs"].([]interface{}) {
+      minimizedLog := make(map[string]interface{})
+      logData := log.(map[string]interface{})
+
+      minimizedLog["transactionIndex"] = logData["transactionIndex"]
+      minimizedLog["transactionHash"] = logData["transactionHash"]
+      minimizedLog["address"] = logData["address"]
+      minimizedLog["data"] = logData["data"]
+      minimizedLog["logIndex"] = logData["logIndex"]
+      minimizedLog["topics"] = logData["topics"]
+
+      minimizedlogs = append(minimizedlogs, minimizedLog)
+    }
+    minimizedReceipt["logs"] = minimizedlogs
+
+//     fmt.Println("Minimized Receipt:", minimizedReceipt)
+
+    receipts = append(receipts, minimizedReceipt)
   }
 
   //    fmt.Println(transactions[0])
 
-  jsonBytes, err := json.MarshalIndent(transactions, "", "    ")
-  require.NoError(t, err)
+  jsonBytes, _ := json.MarshalIndent(transactions, "", "    ")
 
   fileName := fmt.Sprintf("transactions_from_block_%d.json", blockNumber)
-  err = ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
-  require.NoError(t, err)
+  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
 
   transactionsTrie := NewTrie()
 
-  txsFromJson := TransactionsJSONFromFile(t, fileName)
+  txsFromJson := TransactionsFromJSON(t, fileName)
 
   for i, tx := range txsFromJson {
-    //   for i, tx := range block.Transactions() {
     // key is the encoding of the index as the unsigned integer type
-    key, err := rlp.EncodeToBytes(uint(i))
-    require.NoError(t, err)
-
-    transaction := FromEthTransaction(tx)
+    key, _ := rlp.EncodeToBytes(uint(i))
 
     // value is the RLP encoding of a transaction
-    rlp, err := transaction.GetRLP()
-    require.NoError(t, err)
+    rlp, _ := rlp.EncodeToBytes(tx)
 
     transactionsTrie.Put(key, rlp)
-  }
-
-  receiptsTrie := NewTrie()
-
-  for i, receipt := range receipts {
-    // key is the encoding of the index as the unsigned integer type
-    key, err := rlp.EncodeToBytes(uint(i))
-    require.NoError(t, err)
-
-    // value is the RLP encoding of a receipt
-    rlp, err := rlp.EncodeToBytes(receipt)
-    require.NoError(t, err)
-
-    receiptsTrie.Put(key, rlp)
   }
 
   transactionsRootByte, _ := hex.DecodeString(blockFromRpc["transactionsRoot"].(string)[2:])
@@ -143,13 +149,6 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
   t.Run("Merkle root hash should match with transactionsRoot", func(t *testing.T) {
     // transaction root should match with block transactionsRoot
     require.Equal(t, transactionsRootByte, transactionsTrie.Hash())
-  })
-
-  receiptsRootByte, err := hex.DecodeString(blockFromRpc["receiptsRoot"].(string)[2:])
-
-  t.Run("Merkle root hash should match with receiptsRoot", func(t *testing.T) {
-    // transaction root should match with block transactionsRoot
-    require.Equal(t, receiptsRootByte, receiptsTrie.Hash())
   })
 
   t.Run("A Merkle proof for a certain transaction can be verified by the offical trie implementation", func(t *testing.T) {
@@ -163,8 +162,56 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
     require.NoError(t, err)
 
     // verify that if the verification passes, it returns the RLP encoded transaction
-    rlp, err := FromEthTransaction(txsFromJson[transactionsCount-1]).GetRLP()
+    rlp, err := rlp.EncodeToBytes(txsFromJson[transactionsCount-1])
     require.NoError(t, err)
     require.Equal(t, rlp, txRLP)
   })
+
+  jsonBytes, _ = json.MarshalIndent(receipts, "", "    ")
+
+  fileName = fmt.Sprintf("transactions_receipts_from_block_%d.json", blockNumber)
+  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
+
+  receiptsTrie := NewTrie()
+
+  receiptsFromJson := TransactionsReceiptsFromJSON(t, fileName)
+
+  for i, receipt := range receiptsFromJson {
+    // key is the encoding of the index as the unsigned integer type
+    key, _ := rlp.EncodeToBytes(uint(i))
+
+    // value is the RLP encoding of a receipt
+    rlp, _ := rlp.EncodeToBytes(receipt)
+
+    receiptsTrie.Put(key, rlp)
+  }
+  
+  receiptsRootByte, _ := hex.DecodeString(blockFromRpc["receiptsRoot"].(string)[2:])
+
+  t.Run("Merkle root hash should match with receiptsRoot", func(t *testing.T) {
+    // transaction root should match with block transactionsRoot
+    require.Equal(t, receiptsRootByte, receiptsTrie.Hash())
+  })
+}
+
+func TransactionsFromJSON(t *testing.T, fileName string) []*types.Transaction {
+	jsonFile, err := os.Open(fileName)
+	defer jsonFile.Close()
+	require.NoError(t, err)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+	var txs []*types.Transaction
+	json.Unmarshal(byteValue, &txs)
+	return txs
+}
+
+func TransactionsReceiptsFromJSON(t *testing.T, fileName string) []*types.Receipt {
+	jsonFile, err := os.Open(fileName)
+	defer jsonFile.Close()
+	require.NoError(t, err)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+	var receipts []*types.Receipt
+	json.Unmarshal(byteValue, &receipts)
+	return receipts
 }
