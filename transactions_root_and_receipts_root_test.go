@@ -122,7 +122,7 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
 	transactionsTrie := NewTrie()
 
- 	txs := TransactionsFromJSON(t, fileName)
+ 	txs := EthereumTransactionsFromJSON(t, fileName)
 
  	for i, tx := range txs {
 // 	for i, tx := range block.Transactions() {
@@ -130,10 +130,8 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 		key, err := rlp.EncodeToBytes(uint(i))
 		require.NoError(t, err)
 
-		transaction := FromEthTransaction(tx)
-
 		// value is the RLP encoding of a transaction
-		rlp, err := transaction.GetRLP()
+		rlp, err := rlp.EncodeToBytes(tx)
 		require.NoError(t, err)
 
 		transactionsTrie.Put(key, rlp)
@@ -182,10 +180,21 @@ func TestTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 		require.NoError(t, err)
 
 		// verify that if the verification passes, it returns the RLP encoded transaction
-		rlp, err := FromEthTransaction(txs[transactionsCount - 1]).GetRLP()
+		rlp, err := rlp.EncodeToBytes(txs[transactionsCount - 1])
 		require.NoError(t, err)
 		require.Equal(t, rlp, txRLP)
 	})
+}
+
+func EthereumTransactionsFromJSON(t *testing.T, fileName string) []*types.Transaction {
+	jsonFile, err := os.Open(fileName)
+	defer jsonFile.Close()
+	require.NoError(t, err)
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+	var txs []*types.Transaction
+	json.Unmarshal(byteValue, &txs)
+	return txs
 }
 
 func TransactionsReceiptsJSONFromFile(t *testing.T, fileName string) []*types.Receipt {
@@ -198,22 +207,4 @@ func TransactionsReceiptsJSONFromFile(t *testing.T, fileName string) []*types.Re
 	json.Unmarshal(byteValue, &receipts)
 	return receipts
 }
-
-// func FromEthTransactionReceipt(r *types.Receipt) *Receipt {
-// 	return &Receipt{
-// // 		Type:              r.Type,
-// 		PostState:         r.PostState,
-// 		Status:            r.Status,
-// 		CumulativeGasUsed: r.CumulativeGasUsed,
-// 		Bloom:             r.Bloom,
-// 		Logs:              r.Logs,
-// 		TxHash:            r.TxHash,
-// 		ContractAddress:   r.ContractAddress,
-// 		GasUsed:           r.GasUsed,
-// //     EffectiveGasPrice: r.EffectiveGasPrice,
-//     BlockHash:         r.BlockHash,
-//     BlockNumber:       r.BlockNumber,
-//     TransactionIndex:  r.TransactionIndex,
-// 	}
-// }
 

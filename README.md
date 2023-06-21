@@ -255,10 +255,8 @@ func TestTransactionRootAndProof(t *testing.T) {
 		key, err := rlp.EncodeToBytes(uint(i))
 		require.NoError(t, err)
 
-		transaction := FromEthTransaction(tx)
-
 		// value is the RLP encoding of a transaction
-		rlp, err := transaction.GetRLP()
+		rlp, err := rlp.EncodeToBytes(tx)
 		require.NoError(t, err)
 
 		trie.Put(key, rlp)
@@ -285,7 +283,7 @@ func TestTransactionRootAndProof(t *testing.T) {
 		require.NoError(t, err)
 
 		// verify that if the verification passes, it returns the RLP encoded transaction
-		rlp, err := FromEthTransaction(txs[30]).GetRLP()
+		rlp, err := rlp.EncodeToBytes(txs[30])
 		require.NoError(t, err)
 		require.Equal(t, rlp, txRLP)
 	})

@@ -26,6 +26,8 @@ import (
 const (
 	// HashLength is the expected length of the hash
 	HashLength = 32
+	// AddressLength is the expected length of the address
+	AddressLength = 20
 )
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
@@ -58,6 +60,32 @@ func (h *Hash) SetBytes(b []byte) {
 	copy(h[HashLength-len(b):], b)
 }
 
+/////////// Address
+
+// Address represents the 20 byte address of an Ethereum account.
+type Address [AddressLength]byte
+
+// BytesToAddress returns Address with value b.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToAddress(b []byte) Address {
+	var a Address
+	a.SetBytes(b)
+	return a
+}
+
+// HexToAddress returns Address with byte values of s.
+// If s is larger than len(h), s will be cropped from the left.
+func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
+
+// SetBytes sets the address to the value of b.
+// If b is larger than len(a), b will be cropped from the left.
+func (a *Address) SetBytes(b []byte) {
+	if len(b) > len(a) {
+		b = b[len(b)-AddressLength:]
+	}
+	copy(a[AddressLength-len(b):], b)
+}
+
 //////////// bytes
 
 // FromHex returns the bytes represented by the hexadecimal string s.
@@ -72,28 +100,8 @@ func FromHex(s string) []byte {
 	return Hex2Bytes(s)
 }
 
-// has0xPrefix validates str begins with '0x' or '0X'.
-func has0xPrefix(str string) bool {
-	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
-}
-
 // Hex2Bytes returns the bytes represented by the hexadecimal string str.
 func Hex2Bytes(str string) []byte {
 	h, _ := hex.DecodeString(str)
 	return h
-}
-
-///////////  From package hexutil
-// github.com/ethereum/go-ethereum/common/hexutil
-
-// Bytes marshals/unmarshals as a JSON string with 0x prefix.
-// The empty slice marshals as "0x".
-type Bytes []byte
-
-// MarshalText implements encoding.TextMarshaler
-func (b Bytes) MarshalText() ([]byte, error) {
-	result := make([]byte, len(b)*2+2)
-	copy(result, `0x`)
-	hex.Encode(result[2:], b)
-	return result, nil
 }
