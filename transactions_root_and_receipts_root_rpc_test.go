@@ -11,10 +11,9 @@ import (
   "os"
   "testing"
 
-  "github.com/ethereum/go-ethereum/common"
-  "github.com/ethereum/go-ethereum/common/hexutil"
   "github.com/ethereum/go-ethereum/core/types"
-	"merkle-patrica-trie/rlp"
+  "merkle-patrica-trie/common"
+  "merkle-patrica-trie/rlp"
   "github.com/ethereum/go-ethereum/rpc"
   "github.com/joho/godotenv"
   "github.com/stretchr/testify/require"
@@ -32,7 +31,7 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
   fmt.Println("BlockNumber:", blockNumber)
 
   var blockFromRpc map[string]interface{}
-  rpcClient.CallContext(context.Background(), &blockFromRpc, "eth_getBlockByNumber", hexutil.EncodeBig(big.NewInt(int64(blockNumber))), true)
+  rpcClient.CallContext(context.Background(), &blockFromRpc, "eth_getBlockByNumber", EncodeBig(big.NewInt(int64(blockNumber))), true)
 
   fmt.Println("Timestamp:", blockFromRpc["timestamp"])
   fmt.Println("Size:", blockFromRpc["size"])
@@ -214,4 +213,18 @@ func TransactionsReceiptsFromJSON(t *testing.T, fileName string) []*types.Receip
 	var receipts []*types.Receipt
 	json.Unmarshal(byteValue, &receipts)
 	return receipts
+}
+
+///////////  From package hexutil
+// github.com/ethereum/go-ethereum/common/hexutil
+
+// EncodeBig encodes bigint as a hex string with 0x prefix.
+func EncodeBig(bigint *big.Int) string {
+	if sign := bigint.Sign(); sign == 0 {
+		return "0x0"
+	} else if sign > 0 {
+		return "0x" + bigint.Text(16)
+	} else {
+		return "-0x" + bigint.Text(16)[1:]
+	}
 }
