@@ -17,10 +17,28 @@
 // Package common contains various helper functions.
 package common
 
-import (
-	"encoding/hex"
-	"errors"
-)
+import "encoding/hex"
+
+// ToHex returns the hex representation of b, prefixed with '0x'.
+// For empty slices, the return value is "0x0".
+//
+// Deprecated: use hexutil.Encode instead.
+func ToHex(b []byte) string {
+	hex := Bytes2Hex(b)
+	if len(hex) == 0 {
+		hex = "0"
+	}
+	return "0x" + hex
+}
+
+// ToHexArray creates a array of hex-string based on []byte
+func ToHexArray(b [][]byte) []string {
+	r := make([]string, len(b))
+	for i := range b {
+		r[i] = ToHex(b[i])
+	}
+	return r
+}
 
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".
@@ -45,7 +63,7 @@ func CopyBytes(b []byte) (copiedBytes []byte) {
 	return
 }
 
-// // has0xPrefix validates str begins with '0x' or '0X'.
+// has0xPrefix validates str begins with '0x' or '0X'.
 // func has0xPrefix(str string) bool {
 // 	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
 // }
@@ -91,15 +109,6 @@ func Hex2BytesFixed(str string, flen int) []byte {
 	hh := make([]byte, flen)
 	copy(hh[flen-len(h):flen], h)
 	return hh
-}
-
-// ParseHexOrString tries to hexdecode b, but if the prefix is missing, it instead just returns the raw bytes
-func ParseHexOrString(str string) ([]byte, error) {
-	b, err := Decode(str)
-	if errors.Is(err, ErrMissingPrefix) {
-		return []byte(str), nil
-	}
-	return b, err
 }
 
 // RightPadBytes zero-pads slice to the right up to length l.

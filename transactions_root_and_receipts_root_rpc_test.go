@@ -175,6 +175,11 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
   receiptsFromJson := TransactionsReceiptsFromJSON(t, fileName)
 
+  jsonBytes, _ = json.MarshalIndent(receiptsFromJson, "", "    ")
+
+  fileName = fmt.Sprintf("transactions2_receipts_from_block_%d.json", blockNumber)
+  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
+
   for i, receipt := range receiptsFromJson {
     // key is the encoding of the index as the unsigned integer type
     key, _ := rlp.EncodeToBytes(uint(i))
