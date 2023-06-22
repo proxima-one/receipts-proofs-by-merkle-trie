@@ -3,8 +3,7 @@ package main
 import (
   "math/big"
 
-  "github.com/ethereum/go-ethereum/common"
-  "github.com/ethereum/go-ethereum/common/hexutil"
+  "merkle-patrica-trie/common"
   "merkle-patrica-trie/rlp"
   "encoding/json"
 )
@@ -28,29 +27,29 @@ func (t Transaction) GetRLP() ([]byte, error) {
 }
 
 type txJSON struct {
-  Nonce    *hexutil.Uint64  `json:"nonce"`
-  GasPrice *hexutil.Big     `json:"gasPrice"`
-  Gas      *hexutil.Uint64  `json:"gas"`
+  Nonce    *common.Uint64  `json:"nonce"`
+  GasPrice *common.Big     `json:"gasPrice"`
+  Gas      *common.Uint64  `json:"gas"`
   To       *common.Address  `json:"to"`
-  Value    *hexutil.Big     `json:"value"`
-  Data     *hexutil.Bytes   `json:"input"`
-  V        *hexutil.Big     `json:"v"`
-  R        *hexutil.Big     `json:"r"`
-  S        *hexutil.Big     `json:"s"`
+  Value    *common.Big     `json:"value"`
+  Data     *common.Bytes   `json:"input"`
+  V        *common.Big     `json:"v"`
+  R        *common.Big     `json:"r"`
+  S        *common.Big     `json:"s"`
 }
 
 func (tx *Transaction) MarshalJSON() ([]byte, error) {
   var enc txJSON
 
-  enc.Nonce = (*hexutil.Uint64)(&tx.Nonce)
-  enc.Gas = (*hexutil.Uint64)(&tx.Gas)
-  enc.GasPrice = (*hexutil.Big)(tx.GasPrice)
-  enc.Value = (*hexutil.Big)(tx.Value)
-  enc.Data = (*hexutil.Bytes)(&tx.Data)
+  enc.Nonce = (*common.Uint64)(&tx.Nonce)
+  enc.Gas = (*common.Uint64)(&tx.Gas)
+  enc.GasPrice = (*common.Big)(tx.GasPrice)
+  enc.Value = (*common.Big)(tx.Value)
+  enc.Data = (*common.Bytes)(&tx.Data)
   enc.To = tx.To
-  enc.V = (*hexutil.Big)(tx.V)
-  enc.R = (*hexutil.Big)(tx.R)
-  enc.S = (*hexutil.Big)(tx.S)
+  enc.V = (*common.Big)(tx.V)
+  enc.R = (*common.Big)(tx.R)
+  enc.S = (*common.Big)(tx.S)
   
   return json.Marshal(&enc)
 }
