@@ -184,6 +184,22 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
     // transaction root should match with block transactionsRoot
     require.Equal(t, receiptsRootByte, receiptsTrie.Hash())
   })
+
+  t.Run("A Merkle proof for a certain transaction receipt can be verified by the offical trie implementation", func(t *testing.T) {
+    key, err := rlp.EncodeToBytes(uint(transactionsCount - 1))
+    require.NoError(t, err)
+
+    proof, found := receiptsTrie.Prove(key)
+    require.Equal(t, true, found)
+
+    receiptRLP, err := VerifyProof(receiptsRootByte, key, proof)
+    require.NoError(t, err)
+
+    // verify that if the verification passes, it returns the RLP encoded transaction receipt
+    rlp, err := rlp.EncodeToBytes(receiptsFromJson[transactionsCount-1])
+    require.NoError(t, err)
+    require.Equal(t, rlp, receiptRLP)
+  })
 }
 
 func TransactionsFromJSON(t *testing.T, fileName string) []*Transaction {
