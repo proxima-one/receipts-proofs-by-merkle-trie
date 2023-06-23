@@ -1,2 +1,5 @@
 .secret
 .env
+
+curve_3pool/rust/curve_3pool/Cargo.lock
+curve_3pool/rust/curve_3pool/target/
