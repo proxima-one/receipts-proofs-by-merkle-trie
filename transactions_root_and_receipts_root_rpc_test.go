@@ -11,7 +11,6 @@ import (
   "os"
   "testing"
 
-  "github.com/ethereum/go-ethereum/core/types"
   "merkle-patrica-trie/common"
   "merkle-patrica-trie/rlp"
   "github.com/ethereum/go-ethereum/rpc"
@@ -54,11 +53,11 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
   rpcTransactions := blockFromRpc["transactions"].([]interface{})
 
   // Print transactions hashes
-  transactionsHashes := []string{}
-  for _, tx := range rpcTransactions {
-    txData := tx.(map[string]interface{})
-    transactionsHashes = append(transactionsHashes, txData["hash"].(string))
-  }
+//   transactionsHashes := []string{}
+//   for _, tx := range rpcTransactions {
+//     txData := tx.(map[string]interface{})
+//     transactionsHashes = append(transactionsHashes, txData["hash"].(string))
+//   }
 //   fmt.Println("TransactionsHashes:", transactionsHashes)
 
   transactions := make([]map[string]interface{}, 0)
@@ -97,7 +96,6 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
     minimizedReceipt["status"] = receipt["status"]
     minimizedReceipt["cumulativeGasUsed"] = receipt["cumulativeGasUsed"]
     minimizedReceipt["logsBloom"] = receipt["logsBloom"]
-    minimizedReceipt["transactionHash"] = receipt["transactionHash"]
     minimizedReceipt["gasUsed"] = receipt["gasUsed"]
 
     minimizedlogs := make([]map[string]interface{}, 0)
@@ -105,11 +103,8 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
       minimizedLog := make(map[string]interface{})
       logData := log.(map[string]interface{})
 
-      minimizedLog["transactionIndex"] = logData["transactionIndex"]
-      minimizedLog["transactionHash"] = logData["transactionHash"]
       minimizedLog["address"] = logData["address"]
       minimizedLog["data"] = logData["data"]
-      minimizedLog["logIndex"] = logData["logIndex"]
       minimizedLog["topics"] = logData["topics"]
 
       minimizedlogs = append(minimizedlogs, minimizedLog)
@@ -120,8 +115,6 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
     receipts = append(receipts, minimizedReceipt)
   }
-
-  //    fmt.Println(transactions[0])
 
   jsonBytes, _ := json.MarshalIndent(transactions, "", "    ")
 
@@ -175,11 +168,6 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
   receiptsFromJson := TransactionsReceiptsFromJSON(t, fileName)
 
-  jsonBytes, _ = json.MarshalIndent(receiptsFromJson, "", "    ")
-
-  fileName = fmt.Sprintf("transactions2_receipts_from_block_%d.json", blockNumber)
-  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
-
   for i, receipt := range receiptsFromJson {
     // key is the encoding of the index as the unsigned integer type
     key, _ := rlp.EncodeToBytes(uint(i))
@@ -199,23 +187,23 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 }
 
 func TransactionsFromJSON(t *testing.T, fileName string) []*Transaction {
-	jsonFile, err := os.Open(fileName)
-	defer jsonFile.Close()
-	require.NoError(t, err)
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	require.NoError(t, err)
-	var txs []*Transaction
-	json.Unmarshal(byteValue, &txs)
-	return txs
+  jsonFile, err := os.Open(fileName)
+  defer jsonFile.Close()
+  require.NoError(t, err)
+  byteValue, err := ioutil.ReadAll(jsonFile)
+  require.NoError(t, err)
+  var txs []*Transaction
+  json.Unmarshal(byteValue, &txs)
+  return txs
 }
 
-func TransactionsReceiptsFromJSON(t *testing.T, fileName string) []*types.Receipt {
-	jsonFile, err := os.Open(fileName)
-	defer jsonFile.Close()
-	require.NoError(t, err)
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	require.NoError(t, err)
-	var receipts []*types.Receipt
-	json.Unmarshal(byteValue, &receipts)
-	return receipts
+func TransactionsReceiptsFromJSON(t *testing.T, fileName string) []*Receipt {
+  jsonFile, err := os.Open(fileName)
+  defer jsonFile.Close()
+  require.NoError(t, err)
+  byteValue, err := ioutil.ReadAll(jsonFile)
+  require.NoError(t, err)
+  var receipts []*Receipt
+  json.Unmarshal(byteValue, &receipts)
+  return receipts
 }

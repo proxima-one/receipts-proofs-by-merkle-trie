@@ -23,7 +23,7 @@ type Transaction struct {
 }
 
 func (t Transaction) GetRLP() ([]byte, error) {
-	return rlp.EncodeToBytes(t)
+  return rlp.EncodeToBytes(t)
 }
 
 type txJSON struct {
@@ -36,22 +36,6 @@ type txJSON struct {
   V        *common.Big     `json:"v"`
   R        *common.Big     `json:"r"`
   S        *common.Big     `json:"s"`
-}
-
-func (tx *Transaction) MarshalJSON() ([]byte, error) {
-  var enc txJSON
-
-  enc.Nonce = (*common.Uint64)(&tx.Nonce)
-  enc.Gas = (*common.Uint64)(&tx.Gas)
-  enc.GasPrice = (*common.Big)(tx.GasPrice)
-  enc.Value = (*common.Big)(tx.Value)
-  enc.Data = (*common.Bytes)(&tx.Data)
-  enc.To = tx.To
-  enc.V = (*common.Big)(tx.V)
-  enc.R = (*common.Big)(tx.R)
-  enc.S = (*common.Big)(tx.S)
-  
-  return json.Marshal(&enc)
 }
 
 func (tx *Transaction) UnmarshalJSON(input []byte) error {
