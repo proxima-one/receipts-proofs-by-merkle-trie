@@ -3,3 +3,6 @@
 
 curve_3pool/rust/curve_3pool/Cargo.lock
 curve_3pool/rust/curve_3pool/target/
+
+rust/trie/Cargo.lock
+rust/trie/target/
