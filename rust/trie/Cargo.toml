@@ -6,4 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tiny_keccak = "2.0.2"
+tiny-keccak = { version = "2.0", features = ["sha3"] }
+hex = "0.4"
