@@ -4,18 +4,18 @@ fn main() {
 
 extern crate tiny_keccak;
 use tiny_keccak::Keccak;
-
+use std::boxed::Box;
 
 // nodes.go
 
-// extern crate rlp;
+extern crate rlp;
 // 
 // use rlp::encode;
 use std::io::Write;
 
 // type Node interface {
-// 	Hash() []byte // common.Hash
-// 	Raw() []interface{}
+//   Hash() []byte // common.Hash
+//   Raw() []interface{}
 // }
 trait Node {
     fn hash(&self) -> Vec<u8>; 
@@ -23,10 +23,10 @@ trait Node {
 }
 
 // func Hash(node Node) []byte {
-// 	if IsEmptyNode(node) {
-// 		return EmptyNodeHash
-// 	}
-// 	return node.Hash()
+//   if IsEmptyNode(node) {
+//     return EmptyNodeHash
+//   }
+//   return node.Hash()
 // }
 fn hash(node: &impl Node) -> Vec<u8> {
     if is_empty_node(node) {
@@ -35,23 +35,25 @@ fn hash(node: &impl Node) -> Vec<u8> {
     node.hash()
 }
 
+use std::any::Any;
+
 // func Serialize(node Node) []byte {
-// 	var raw interface{}
+//   var raw interface{}
 // 
-// 	if IsEmptyNode(node) {
-// 		raw = EmptyNodeRaw
-// 	} else {
-// 		raw = node.Raw()
-// 	}
+//   if IsEmptyNode(node) {
+//     raw = EmptyNodeRaw
+//   } else {
+//     raw = node.Raw()
+//   }
 // 
-// 	rlp, err := rlp.EncodeToBytes(raw)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+//   rlp, err := rlp.EncodeToBytes(raw)
+//   if err != nil {
+//     panic(err)
+//   }
 // 
-// 	return rlp
+//   return rlp
 // }
-fn serialize(node: &impl Node) -> Vec<u8> {
+fn serialize(node: &impl Node) -> Box<dyn Any> {
     let raw = if is_empty_node(node) {
         EMPTY_NODE_RAW
     } else {
@@ -80,14 +82,23 @@ pub struct Trie {
 }
 
 impl Trie {
+    // func NewTrie() *Trie {
+    //   return &Trie{}
+    // }
     pub fn new() -> Trie {
         Trie { root: Node::Empty }
     }
 
-    pub fn hash(&self) -> Vec<u8> {
-        match &self.root {
-            Node::Empty => EMPTY_NODE_HASH,
-            _ => self.root.hash(),
+    // func (t *Trie) Hash() []byte {
+    //   if IsEmptyNode(t.root) {
+    //     return EmptyNodeHash
+    //   }
+    //   return t.root.Hash()
+    // }
+    pub fn hash(&self) -> Box<dyn Any> {
+        match is_empty_node(&self.root) {
+            true => EMPTY_NODE_HASH.to_vec(),
+            false => self.root.as_ref().unwrap().hash(),
         }
     }
 
@@ -376,9 +387,9 @@ impl Trie {
 }
 
 // nibbles.go
-#[derive(Clone)]
 
 // type Nibble byte
+#[derive(Debug, PartialEq, Clone)]
 pub struct Nibble(u8);
 
 impl Nibble {
@@ -387,20 +398,20 @@ impl Nibble {
     }
 
     // func IsNibble(nibble byte) bool {
-    // 	n := int(nibble)
-    // 	// 0-9 && a-f
-    // 	return n >= 0 && n < 16
+    //   n := int(nibble)
+    //   // 0-9 && a-f
+    //   return n >= 0 && n < 16
     // }
     fn is_nibble(nibble: u8) -> bool {
-        let n = nibble.to_usize();
+        let n = nibble as usize;
         n >= 0 && n < 16
     }
 
     // func FromNibbleByte(n byte) (Nibble, error) {
-    // 	if !IsNibble(n) {
-    // 		return 0, fmt.Errorf("non-nibble byte: %v", n)
-    // 	}
-    // 	return Nibble(n), nil
+    //   if !IsNibble(n) {
+    //     return 0, fmt.Errorf("non-nibble byte: %v", n)
+    //   }
+    //   return Nibble(n), nil
     // }
     fn from_nibble_byte(n: u8) -> Result<Nibble, &'static str> {
         if !Nibble::is_nibble(n) {
@@ -411,15 +422,15 @@ impl Nibble {
 
     // // nibbles contain one nibble per byte
     // func FromNibbleBytes(nibbles []byte) ([]Nibble, error) {
-    // 	ns := make([]Nibble, 0, len(nibbles))
-    // 	for _, n := range nibbles {
-    // 		nibble, err := FromNibbleByte(n)
-    // 		if err != nil {
-    // 			return nil, fmt.Errorf("contains non-nibble byte: %w", err)
-    // 		}
-    // 		ns = append(ns, nibble)
-    // 	}
-    // 	return ns, nil
+    //   ns := make([]Nibble, 0, len(nibbles))
+    //   for _, n := range nibbles {
+    //     nibble, err := FromNibbleByte(n)
+    //     if err != nil {
+    //       return nil, fmt.Errorf("contains non-nibble byte: %w", err)
+    //     }
+    //     ns = append(ns, nibble)
+    //   }
+    //   return ns, nil
     // }
     fn from_nibble_bytes(nibbles: Vec<u8>) -> Result<Vec<Nibble>, &'static str> {
         let mut ns = Vec::with_capacity(nibbles.len());
@@ -431,10 +442,10 @@ impl Nibble {
     }
 
     // func FromByte(b byte) []Nibble {
-    // 	return []Nibble{
-    // 		Nibble(byte(b >> 4)),
-    // 		Nibble(byte(b % 16)),
-    // 	}
+    //   return []Nibble{
+    //     Nibble(byte(b >> 4)),
+    //     Nibble(byte(b % 16)),
+    //   }
     // }
     fn from_byte(b: u8) -> Vec<Nibble> {
         vec![
@@ -444,11 +455,11 @@ impl Nibble {
     }
 
     // func FromBytes(bs []byte) []Nibble {
-    // 	ns := make([]Nibble, 0, len(bs)*2)
-    // 	for _, b := range bs {
-    // 		ns = append(ns, FromByte(b)...)
-    // 	}
-    // 	return ns
+    //   ns := make([]Nibble, 0, len(bs)*2)
+    //   for _, b := range bs {
+    //     ns = append(ns, FromByte(b)...)
+    //   }
+    //   return ns
     // }
     fn from_bytes(bs: Vec<u8>) -> Vec<Nibble> {
         let mut ns = Vec::with_capacity(bs.len() * 2);
@@ -459,7 +470,7 @@ impl Nibble {
     }
 
     // func FromString(s string) []Nibble {
-    // 	return FromBytes([]byte(s))
+    //   return FromBytes([]byte(s))
     // }
     fn from_string(s: String) -> Vec<Nibble> {
         Nibble::from_bytes(s.into_bytes())
@@ -468,27 +479,27 @@ impl Nibble {
     // // ToPrefixed add nibble prefix to a slice of nibbles to make its length even
     // // the prefix indicts whether a node is a leaf node.
     // func ToPrefixed(ns []Nibble, isLeafNode bool) []Nibble {
-    // 	// create prefix
-    // 	var prefixBytes []Nibble
-    // 	// odd number of nibbles
-    // 	if len(ns)%2 > 0 {
-    // 		prefixBytes = []Nibble{1}
-    // 	} else {
-    // 		// even number of nibbles
-    // 		prefixBytes = []Nibble{0, 0}
-    // 	}
+    //   // create prefix
+    //   var prefixBytes []Nibble
+    //   // odd number of nibbles
+    //   if len(ns)%2 > 0 {
+    //     prefixBytes = []Nibble{1}
+    //   } else {
+    //     // even number of nibbles
+    //     prefixBytes = []Nibble{0, 0}
+    //   }
     // 
-    // 	// append prefix to all nibble bytes
-    // 	prefixed := make([]Nibble, 0, len(prefixBytes)+len(ns))
-    // 	prefixed = append(prefixed, prefixBytes...)
-    // 	prefixed = append(prefixed, ns...)
+    //   // append prefix to all nibble bytes
+    //   prefixed := make([]Nibble, 0, len(prefixBytes)+len(ns))
+    //   prefixed = append(prefixed, prefixBytes...)
+    //   prefixed = append(prefixed, ns...)
     // 
-    // 	// update prefix if is leaf node
-    // 	if isLeafNode {
-    // 		prefixed[0] += 2
-    // 	}
+    //   // update prefix if is leaf node
+    //   if isLeafNode {
+    //     prefixed[0] += 2
+    //   }
     // 
-    // 	return prefixed
+    //   return prefixed
     // }
     fn to_prefixed(ns: Vec<Nibble>, is_leaf_node: bool) -> Vec<Nibble> {
         let mut prefix_bytes = if ns.len() % 2 > 0 {
@@ -511,14 +522,14 @@ impl Nibble {
     // // ToBytes converts a slice of nibbles to a byte slice
     // // assuming the nibble slice has even number of nibbles.
     // func ToBytes(ns []Nibble) []byte {
-    // 	buf := make([]byte, 0, len(ns)/2)
+    //   buf := make([]byte, 0, len(ns)/2)
     // 
-    // 	for i := 0; i < len(ns); i += 2 {
-    // 		b := byte(ns[i]<<4) + byte(ns[i+1])
-    // 		buf = append(buf, b)
-    // 	}
+    //   for i := 0; i < len(ns); i += 2 {
+    //     b := byte(ns[i]<<4) + byte(ns[i+1])
+    //     buf = append(buf, b)
+    //   }
     // 
-    // 	return buf
+    //   return buf
     // }
     fn to_bytes(ns: Vec<Nibble>) -> Vec<u8> {
         let mut buf = Vec::with_capacity(ns.len() / 2);
@@ -535,17 +546,17 @@ impl Nibble {
     // // [0,1,2,3], [0,1,2,3] => 4
     // // [0,1,2,3], [0,1,2,3,4] => 4
     // func PrefixMatchedLen(node1 []Nibble, node2 []Nibble) int {
-    // 	matched := 0
-    // 	for i := 0; i < len(node1) && i < len(node2); i++ {
-    // 		n1, n2 := node1[i], node2[i]
-    // 		if n1 == n2 {
-    // 			matched++
-    // 		} else {
-    // 			break
-    // 		}
-    // 	}
+    //   matched := 0
+    //   for i := 0; i < len(node1) && i < len(node2); i++ {
+    //     n1, n2 := node1[i], node2[i]
+    //     if n1 == n2 {
+    //       matched++
+    //     } else {
+    //       break
+    //     }
+    //   }
     // 
-    // 	return matched
+    //   return matched
     // }
     fn prefix_matched_len(node1: &[Nibble], node2: &[Nibble]) -> usize {
         node1.iter().zip(node2.iter()).take_while(|&(n1, n2)| n1 == n2).count()
@@ -555,59 +566,105 @@ impl Nibble {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::vec::Vec;
 
+    // func TestIsNibble(t *testing.T) {
+    //   for i := 0; i < 20; i++ {
+    //     isNibble := i >= 0 && i < 16
+    //     require.Equal(t, isNibble, IsNibble(byte(i)), i)
+    //   }
+    // }
     #[test]
     fn test_is_nibble() {
         for i in 0..20 {
-            let is_nibble = i >= 0 && i < 16;
-            assert_eq!(is_nibble, is_nibble(i as u8), "{}", i);
+            let is_nibble = i < 16;
+            assert_eq!(is_nibble, Nibble::is_nibble(i as u8), "{}", i);
         }
     }
 
+    // func TestToPrefixed(t *testing.T) {
+    //   cases := []struct {
+    //     ns         []Nibble
+    //     isLeafNode bool
+    //     expected   []Nibble
+    //   }{
+    //     {[]Nibble{1}, false, []Nibble{1, 1},},
+    //     {[]Nibble{1, 2}, false, []Nibble{0, 0, 1, 2},},
+    //     {[]Nibble{1}, true, []Nibble{3, 1},},
+    //     {[]Nibble{1, 2}, true, []Nibble{2, 0, 1, 2},},
+    //     {[]Nibble{5, 0, 6}, true, []Nibble{3, 5, 0, 6},},
+    //     {[]Nibble{14, 3}, false, []Nibble{0, 0, 14, 3},},
+    //     {[]Nibble{9, 3, 6, 5}, true, []Nibble{2, 0, 9, 3, 6, 5},},
+    //     {[]Nibble{1, 3, 3, 5}, true, []Nibble{2, 0, 1, 3, 3, 5},},
+    //     {[]Nibble{7}, true, []Nibble{3, 7},},
+    //   }
+    // 
+    //   for _, c := range cases {
+    //     require.Equal(t,
+    //       c.expected,
+    //       ToPrefixed(c.ns, c.isLeafNode))
+    //   }
+    // }
     #[test]
     fn test_to_prefixed() {
-        let cases = [
-            (vec![1], false, vec![1, 1]),
-            (vec![1, 2], false, vec![0, 0, 1, 2]),
-            (vec![1], true, vec![3, 1]),
-            (vec![1, 2], true, vec![2, 0, 1, 2]),
-            (vec![5, 0, 6], true, vec![3, 5, 0, 6]),
-            (vec![14, 3], false, vec![0, 0, 14, 3]),
-            (vec![9, 3, 6, 5], true, vec![2, 0, 9, 3, 6, 5]),
-            (vec![1, 3, 3, 5], true, vec![2, 0, 1, 3, 3, 5]),
-            (vec![7], true, vec![3, 7]),
+        let cases = vec![
+            (vec![Nibble(1)], false, vec![Nibble(1), Nibble(1)]),
+            (vec![Nibble(1), Nibble(2)], false, vec![Nibble(0), Nibble(0), Nibble(1), Nibble(2)]),
+            (vec![Nibble(1)], true, vec![Nibble(3), Nibble(1)]),
+            (vec![Nibble(1), Nibble(2)], true, vec![Nibble(2), Nibble(0), Nibble(1), Nibble(2)]),
+            (vec![Nibble(5), Nibble(0), Nibble(6)], true, vec![Nibble(3), Nibble(5), Nibble(0), Nibble(6)]),
+            (vec![Nibble(14), Nibble(3)], false, vec![Nibble(0), Nibble(0), Nibble(14), Nibble(3)]),
+            (vec![Nibble(9), Nibble(3), Nibble(6), Nibble(5)], true, vec![Nibble(2), Nibble(0), Nibble(9), Nibble(3), Nibble(6), Nibble(5)]),
+            (vec![Nibble(1), Nibble(3), Nibble(3), Nibble(5)], true, vec![Nibble(2), Nibble(0), Nibble(1), Nibble(3), Nibble(3), Nibble(5)]),
+            (vec![Nibble(7)], true, vec![Nibble(3), Nibble(7)]),
         ];
 
-        for (ns, is_leaf_node, expected) in cases.iter() {
-            assert_eq!(&expected[..], &Nibble::to_prefixed(ns.as_slice(), *is_leaf_node)[..]);
+        for (ns, is_leaf_node, expected) in cases {
+            assert_eq!(expected, Nibble::to_prefixed(ns, is_leaf_node));
         }
     }
 
+    // func TestFromBytes(t *testing.T) {
+    //   // [1, 100] -> ['0x01', '0x64']
+    //   require.Equal(t, []Nibble{0, 1, 6, 4}, FromBytes([]byte{1, 100}))
+    // }
     #[test]
     fn test_from_bytes() {
         // [1, 100] -> ['0x01', '0x64']
-        assert_eq!(vec![0, 1, 6, 4], Nibble::from_bytes(&[1, 100]));
+        assert_eq!(
+            vec![Nibble(0), Nibble(1), Nibble(6), Nibble(4)],
+            Nibble::from_bytes((&[1, 100]).to_vec())
+        );
     }
 
+    // func TestToBytes(t *testing.T) {
+    //   bytes := []byte{0, 1, 2, 3}
+    //   require.Equal(t, bytes, ToBytes(FromBytes(bytes)))
+    // }
     #[test]
     fn test_to_bytes() {
         let bytes = &[0, 1, 2, 3];
-        assert_eq!(bytes, &Nibble::to_bytes(&Nibble::from_bytes(bytes))[..]);
+        assert_eq!(bytes.to_vec(), Nibble::to_bytes(Nibble::from_bytes(bytes.to_vec())));
     }
 
+    // func TestPrefixMatchedLen(t *testing.T) {
+    //   require.Equal(t, 3, PrefixMatchedLen([]Nibble{0, 1, 2, 3}, []Nibble{0, 1, 2}))
+    //   require.Equal(t, 4, PrefixMatchedLen([]Nibble{0, 1, 2, 3}, []Nibble{0, 1, 2, 3}))
+    //   require.Equal(t, 4, PrefixMatchedLen([]Nibble{0, 1, 2, 3}, []Nibble{0, 1, 2, 3, 4}))
+    // }
     #[test]
     fn test_prefix_matched_len() {
-        assert_eq!(3, Nibble::prefix_matched_len(&[0, 1, 2, 3], &[0, 1, 2]));
-        assert_eq!(4, Nibble::prefix_matched_len(&[0, 1, 2, 3], &[0, 1, 2, 3]));
-        assert_eq!(4, Nibble::prefix_matched_len(&[0, 1, 2, 3], &[0, 1, 2, 3, 4]));
+        assert_eq!(3, Nibble::prefix_matched_len(&[Nibble(0), Nibble(1), Nibble(2), Nibble(3)], &[Nibble(0), Nibble(1), Nibble(2)]));
+        assert_eq!(4, Nibble::prefix_matched_len(&[Nibble(0), Nibble(1), Nibble(2), Nibble(3)], &[Nibble(0), Nibble(1), Nibble(2), Nibble(3)]));
+        assert_eq!(4, Nibble::prefix_matched_len(&[Nibble(0), Nibble(1), Nibble(2), Nibble(3)], &[Nibble(0), Nibble(1), Nibble(2), Nibble(3), Nibble(4)]));
     }
 }
 
 // extension.go
 
 // type ExtensionNode struct {
-// 	Path []Nibble
-// 	Next Node
+//   Path []Nibble
+//   Next Node
 // }
 pub struct ExtensionNode {
     path: Vec<Nibble>,
@@ -616,10 +673,10 @@ pub struct ExtensionNode {
 
 impl ExtensionNode {
     // func NewExtensionNode(nibbles []Nibble, next Node) *ExtensionNode {
-    // 	return &ExtensionNode{
-    // 		Path: nibbles,
-    // 		Next: next,
-    // 	}
+    //   return &ExtensionNode{
+    //     Path: nibbles,
+    //     Next: next,
+    //   }
     // }
     fn new(nibbles: Vec<Nibble>, next: Box<dyn Node>) -> ExtensionNode {
         ExtensionNode {
@@ -629,7 +686,7 @@ impl ExtensionNode {
     }
 
     // func (e ExtensionNode) Hash() []byte {
-    // 	return crypto.Keccak256(e.Serialize())
+    //   return crypto.Keccak256(e.Serialize())
     // }
     fn hash(&self) -> Vec<u8> {
         let data = self.serialize();
@@ -641,14 +698,14 @@ impl ExtensionNode {
     }
 
     // func (e ExtensionNode) Raw() []interface{} {
-    // 	hashes := make([]interface{}, 2)
-    // 	hashes[0] = ToBytes(ToPrefixed(e.Path, false))
-    // 	if len(Serialize(e.Next)) >= 32 {
-    // 		hashes[1] = e.Next.Hash()
-    // 	} else {
-    // 		hashes[1] = e.Next.Raw()
-    // 	}
-    // 	return hashes
+    //   hashes := make([]interface{}, 2)
+    //   hashes[0] = ToBytes(ToPrefixed(e.Path, false))
+    //   if len(Serialize(e.Next)) >= 32 {
+    //     hashes[1] = e.Next.Hash()
+    //   } else {
+    //     hashes[1] = e.Next.Raw()
+    //   }
+    //   return hashes
     // }
     fn raw(&self) -> Vec<Box<dyn Node>> {
         let mut hashes: Vec<Box<dyn Node>> = Vec::with_capacity(2);
@@ -662,9 +719,9 @@ impl ExtensionNode {
     }
 
     // func (e ExtensionNode) Serialize() []byte {
-    // 	return Serialize(e)
+    //   return Serialize(e)
     // }
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Box<dyn Node> {
         serialize(self)
     }
 }
@@ -674,8 +731,8 @@ impl ExtensionNode {
 use std::cell::RefCell;
 
 // type BranchNode struct {
-// 	Branches [16]Node
-// 	Value    []byte
+//   Branches [16]Node
+//   Value    []byte
 // }
 pub struct BranchNode {
     branches: RefCell<[Option<Box<dyn Node>>; 16]>,
@@ -691,7 +748,7 @@ impl Node for BranchNode {
         self.raw()
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Box<dyn Node> {
         self.serialize()
     }
 }
@@ -776,29 +833,25 @@ impl BranchNode {
         let mut hashes: Vec<Box<dyn Node>> = Vec::with_capacity(17);
         for i in 0..16 {
             match &self.branches.borrow()[i] {
-                None => hashes.push(Box::new(EmptyNodeRaw)), // Ваш код показывает, что вы используете некий `EmptyNodeRaw`. Замените это на соответствующий тип в вашем коде.
+                None => hashes[i] = Box::new(EMPTY_NODE_RAW),
                 Some(node) => {
                     if node.serialize().len() >= 32 {
-                        hashes.push(Box::new(node.hash()));
+                        hashes[i] = Box::new(node.hash());
                     } else {
-                        hashes.push(Box::new(node.raw()));
+                        hashes[i] = Box::new(node.raw());
                     }
                 }
             }
         }
 
-        match &*self.value.borrow() {
-            None => hashes.push(Box::new(Vec::<u8>::new())),
-            Some(value) => hashes.push(Box::new(value.clone())),
-        }
-
+        hashes[16] = Box::new(LeafNode::new_from_bytes(&[], &self.value.borrow().as_ref().unwrap()));
         hashes
     }
 
     // func (b BranchNode) Serialize() []byte {
     //   return Serialize(b)
     // }
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Box<dyn Any> {
         serialize(self)
     }
 
@@ -815,37 +868,35 @@ impl BranchNode {
 use tiny_keccak::{Keccak};
 
 // type LeafNode struct {
-// 	Path  []Nibble
-// 	Value []byte
+//   Path  []Nibble
+//   Value []byte
 // }
-#[derive(Debug)]
 pub struct LeafNode {
     path: Vec<Nibble>,
     value: Vec<u8>,
 }
 
 impl Node for LeafNode {
-    fn hash(&self) -> Vec<u8> {
+    fn hash(&self) -> Box<dyn Any> {
         self.hash()
     }
 
-    fn raw(&self) -> Vec<u8> {
-        let (path, value) = self.raw();
-        serialize((path, value))
+    fn raw(&self) -> Box<dyn Any> {
+        self.raw()
     }
 }
 
 impl LeafNode {
     // func NewLeafNodeFromNibbleBytes(nibbles []byte, value []byte) (*LeafNode, error) {
-    // 	ns, err := FromNibbleBytes(nibbles)
-    // 	if err != nil {
-    // 		return nil, fmt.Errorf("could not leaf node from nibbles: %w", err)
-    // 	}
+    //   ns, err := FromNibbleBytes(nibbles)
+    //   if err != nil {
+    //     return nil, fmt.Errorf("could not leaf node from nibbles: %w", err)
+    //   }
     // 
-    // 	return NewLeafNodeFromNibbles(ns, value), nil
+    //   return NewLeafNodeFromNibbles(ns, value), nil
     // }
     pub fn new_from_nibble_bytes(nibbles: &[u8], value: &[u8]) -> Result<LeafNode, &'static str> {
-        let ns = Nibble::from_nibble_bytes(nibbles)?;
+        let ns = Nibble::from_nibble_bytes(nibbles.to_vec())?;
         Ok(LeafNode {
             path: ns,
             value: value.to_vec(),
@@ -853,10 +904,10 @@ impl LeafNode {
     }
 
     // func NewLeafNodeFromNibbles(nibbles []Nibble, value []byte) *LeafNode {
-    // 	return &LeafNode{
-    // 		Path:  nibbles,
-    // 		Value: value,
-    // 	}
+    //   return &LeafNode{
+    //     Path:  nibbles,
+    //     Value: value,
+    //   }
     // }
     pub fn new_leaf_node_from_nibbles(nibbles: Vec<Nibble>, value: Vec<u8>) -> LeafNode {
         LeafNode {
@@ -866,43 +917,46 @@ impl LeafNode {
     }
 
     // func NewLeafNodeFromKeyValue(key, value string) *LeafNode {
-    // 	return NewLeafNodeFromBytes([]byte(key), []byte(value))
+    //   return NewLeafNodeFromBytes([]byte(key), []byte(value))
     // }
     pub fn new_from_key_value(key: &str, value: &str) -> LeafNode {
         LeafNode::new_from_bytes(key.as_bytes(), value.as_bytes())
     }
 
     // func NewLeafNodeFromBytes(key, value []byte) *LeafNode {
-    // 	return NewLeafNodeFromNibbles(FromBytes(key), value)
+    //   return NewLeafNodeFromNibbles(FromBytes(key), value)
     // }
     pub fn new_from_bytes(key: &[u8], value: &[u8]) -> LeafNode {
-        LeafNode::new_leaf_node_from_nibbles(Nibble::from_bytes(key), value.to_vec())
+        LeafNode::new_leaf_node_from_nibbles(Nibble::from_bytes(key.to_vec()), value.to_vec())
     }
 
     // func (l LeafNode) Hash() []byte {
-    // 	return crypto.Keccak256(l.Serialize())
+    //   return crypto.Keccak256(l.Serialize())
     // }
-    pub fn hash(&self) -> Vec<u8> {
+    pub fn hash(&self) -> Box<dyn Any> {
         let mut hasher = Keccak::v256();
         let mut res = [0u8; 32];
         hasher.update(&self.serialize());
         hasher.finalize(&mut res);
-        res.to_vec()
+        Box::new(res.to_vec())
     }
 
     // func (l LeafNode) Raw() []interface{} {
-    // 	path := ToBytes(ToPrefixed(l.Path, true))
-    // 	raw := []interface{}{path, l.Value}
-    // 	return raw
+    //   path := ToBytes(ToPrefixed(l.Path, true))
+    //   raw := []interface{}{path, l.Value}
+    //   return raw
     // }
-    pub fn raw(&self) -> (Vec<u8>, Vec<u8>) {
-        (Nibble::to_bytes(Nibble::to_prefixed(&self.path, true)), self.value.clone())
+    pub fn raw(&self) -> Box<dyn Any> {
+        let path_u8: Box<dyn Any> = Box::new(Nibble::to_bytes(Nibble::to_prefixed(self.path.clone(), true)));
+        let value_any: Box<dyn Any> = Box::new(self.value.clone());
+        let raw: Vec<Box<dyn Any>> = vec![path_u8, value_any];
+        Box::new(raw)
     }
 
     // func (l LeafNode) Serialize() []byte {
-    // 	return Serialize(l)
+    //   return Serialize(l)
     // }
-    pub fn serialize(&self) -> Vec<u8> {
+    pub fn serialize(&self) -> Box<dyn Any> {
         serialize(self)
     }
 }
@@ -919,7 +973,7 @@ static EMPTY_NODE_RAW: [u8; 0] = [];
 static EMPTY_NODE_HASH: [u8; 32] = *b"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
 
 // func IsEmptyNode(node Node) bool {
-// 	return node == nil
+//   return node == nil
 // }
 pub fn is_empty_node(node: &Option<Box<dyn Node>>) -> bool {
     match node {
