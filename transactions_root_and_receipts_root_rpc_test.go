@@ -72,15 +72,30 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
 //     fmt.Println("Transaction hash:", txData["hash"].(string))
 
-    minimizedTx["gas"] = txData["gas"]
-    minimizedTx["gasPrice"] = txData["gasPrice"]
-    minimizedTx["input"] = txData["input"]
+    minimizedTx["type"] = txData["type"]
+    if (txData["chainId"] != nil) {
+      minimizedTx["chainId"] = txData["chainId"]
+    }
     minimizedTx["nonce"] = txData["nonce"]
+    if (txData["maxPriorityFeePerGas"] != nil) {
+      minimizedTx["maxPriorityFeePerGas"] = txData["maxPriorityFeePerGas"]
+    }
+    if (txData["maxFeePerGas"] != nil) {
+      minimizedTx["maxFeePerGas"] = txData["maxFeePerGas"]
+    }
+    if (txData["gasPrice"] != nil) {
+      minimizedTx["gasPrice"] = txData["gasPrice"]
+    }
+    minimizedTx["gas"] = txData["gas"]
+    minimizedTx["input"] = txData["input"]
     minimizedTx["v"] = txData["v"]
     minimizedTx["r"] = txData["r"]
     minimizedTx["s"] = txData["s"]
     minimizedTx["to"] = txData["to"]
     minimizedTx["value"] = txData["value"]
+    if (txData["accessList"] != nil) {
+      minimizedTx["accessList"] = txData["accessList"]
+    }
 
 //     fmt.Println("Minimized Transaction:", minimizedTx)
 
