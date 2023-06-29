@@ -71,6 +71,7 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
     txData := tx.(map[string]interface{})
 
 //     fmt.Println("Transaction hash:", txData["hash"].(string))
+//     fmt.Println("txData:", txData)
 
     minimizedTx["type"] = txData["type"]
     if (txData["chainId"] != nil) {
@@ -139,6 +140,11 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
   transactionsTrie := NewTrie()
 
   txsFromJson := TransactionsFromJSON(t, fileName)
+
+  jsonBytes, _ = json.MarshalIndent(txsFromJson, "", "    ")
+
+  fileName = fmt.Sprintf("transactions2_from_block_%d.json", blockNumber)
+  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
 
   for i, tx := range txsFromJson {
     // key is the encoding of the index as the unsigned integer type
