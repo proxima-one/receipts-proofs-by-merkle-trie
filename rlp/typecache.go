@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
+
 	"merkle-patrica-trie/rlp/internal/rlpstruct"
 )
 
@@ -57,6 +58,11 @@ func newTypeCache() *typeCache {
 	c := new(typeCache)
 	c.cur.Store(make(map[typekey]*typeinfo))
 	return c
+}
+
+func cachedDecoder(typ reflect.Type) (decoder, error) {
+	info := theTC.info(typ)
+	return info.decoder, info.decoderErr
 }
 
 func cachedWriter(typ reflect.Type) (writer, error) {
@@ -174,7 +180,7 @@ func (e structFieldError) Error() string {
 }
 
 func (i *typeinfo) generate(typ reflect.Type, tags rlpstruct.Tags) {
-// 	i.decoder, i.decoderErr = makeDecoder(typ, tags)
+	i.decoder, i.decoderErr = makeDecoder(typ, tags)
 	i.writer, i.writerErr = makeWriter(typ, tags)
 }
 
