@@ -109,6 +109,7 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
 
     minimizedReceipt := make(map[string]interface{})
 
+    minimizedReceipt["type"] = receipt["type"]
     minimizedReceipt["status"] = receipt["status"]
     minimizedReceipt["cumulativeGasUsed"] = receipt["cumulativeGasUsed"]
     minimizedReceipt["logsBloom"] = receipt["logsBloom"]
@@ -188,6 +189,11 @@ func TestRpcTransactionsRootAndReceiptsRootAndProof(t *testing.T) {
   receiptsTrie := NewTrie()
 
   receiptsFromJson := TransactionsReceiptsFromJSON(t, fileName)
+
+  jsonBytes, _ = json.MarshalIndent(receiptsFromJson, "", "    ")
+
+  fileName = fmt.Sprintf("transactions_receipts2_from_block_%d.json", blockNumber)
+  ioutil.WriteFile(fileName, []byte(jsonBytes), 0644)
 
   for i, receipt := range receiptsFromJson {
     // key is the encoding of the index as the unsigned integer type
