@@ -386,6 +386,554 @@ impl Trie {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trie::Trie;
+    use crate::trie::{Trie, Nibble};
+
+    // func hexEqual(t *testing.T, hex string, bytes []byte) {
+    //   require.Equal(t, hex, fmt.Sprintf("%x", bytes))
+    // }
+    fn hex_equal(expected_hex: &str, actual: &[u8]) {
+        let expected = hex::decode(expected_hex).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    // // check basic key-value mapping
+    // func TestGetPut(t *testing.T) {
+    //   t.Run("should get nothing if key does not exist", func(t *testing.T) {
+    //     trie := NewTrie()
+    //     _, found := trie.Get([]byte("notexist"))
+    //     require.Equal(t, false, found)
+    //   })
+    // 
+    //   t.Run("should get value if key exist", func(t *testing.T) {
+    //     trie := NewTrie()
+    //     trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //     val, found := trie.Get([]byte{1, 2, 3, 4})
+    //     require.Equal(t, true, found)
+    //     require.Equal(t, val, []byte("hello"))
+    //   })
+    // 
+    //   t.Run("should get updated value", func(t *testing.T) {
+    //     trie := NewTrie()
+    //     trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //     trie.Put([]byte{1, 2, 3, 4}, []byte("world"))
+    //     val, found := trie.Get([]byte{1, 2, 3, 4})
+    //     require.Equal(t, true, found)
+    //     require.Equal(t, val, []byte("world"))
+    //   })
+    // }
+    #[test]
+    fn test_get_put() {
+        let mut trie = Trie::new();
+
+        // should get nothing if key does not exist
+        assert_eq!(trie.get(&[1, 2, 3, 4]), None);
+
+        // should get value if key exists
+        trie.put(&[1, 2, 3, 4], b"hello");
+        assert_eq!(trie.get(&[1, 2, 3, 4]), Some(b"hello".to_vec()));
+
+        // should get updated value
+        trie.put(&[1, 2, 3, 4], b"world");
+        assert_eq!(trie.get(&[1, 2, 3, 4]), Some(b"world".to_vec()));
+    }
+
+    // // verify data integrity
+    // func TestDataIntegrity(t *testing.T) {
+    //   t.Run("should get a different hash if a new key-value pair was added or updated", func(t *testing.T) {
+    //     trie := NewTrie()
+    //     hash0 := trie.Hash()
+    // 
+    //     trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //     hash1 := trie.Hash()
+    // 
+    //     trie.Put([]byte{1, 2}, []byte("world"))
+    //     hash2 := trie.Hash()
+    // 
+    //     trie.Put([]byte{1, 2}, []byte("trie"))
+    //     hash3 := trie.Hash()
+    // 
+    //     require.NotEqual(t, hash0, hash1)
+    //     require.NotEqual(t, hash1, hash2)
+    //     require.NotEqual(t, hash2, hash3)
+    //   })
+    // 
+    //   t.Run("should get the same hash if two tries have the identicial key-value pairs", func(t *testing.T) {
+    //     trie1 := NewTrie()
+    //     trie1.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //     trie1.Put([]byte{1, 2}, []byte("world"))
+    // 
+    //     trie2 := NewTrie()
+    //     trie2.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //     trie2.Put([]byte{1, 2}, []byte("world"))
+    // 
+    //     require.Equal(t, trie1.Hash(), trie2.Hash())
+    //   })
+    // }
+    #[test]
+    fn test_data_integrity() {
+        let mut trie = Trie::new();
+
+        // should get a different hash if a new key-value pair was added or updated
+        let hash0 = trie.hash();
+        trie.put(&[1, 2, 3, 4], b"hello");
+        let hash1 = trie.hash();
+        trie.put(&[1, 2], b"world");
+        let hash2 = trie.hash();
+        trie.put(&[1, 2], b"trie");
+        let hash3 = trie.hash();
+
+        assert_ne!(hash0, hash1);
+        assert_ne!(hash1, hash2);
+        assert_ne!(hash2, hash3);
+
+        // should get the same hash if two tries have identical key-value pairs
+        let mut trie1 = Trie::new();
+        trie1.put(&[1, 2, 3, 4], b"hello");
+        trie1.put(&[1, 2], b"world");
+
+        let mut trie2 = Trie::new();
+        trie2.put(&[1, 2, 3, 4], b"hello");
+        trie2.put(&[1, 2], b"world");
+
+        assert_eq!(trie1.hash(), trie2.hash());
+    }
+
+    // func TestPut2Pairs(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("verb"))
+    //   trie.Put([]byte{1, 2, 3, 4, 5, 6}, []byte("coin"))
+    // 
+    //   verb, ok := trie.Get([]byte{1, 2, 3, 4})
+    //   require.True(t, ok)
+    //   require.Equal(t, []byte("verb"), verb)
+    // 
+    //   coin, ok := trie.Get([]byte{1, 2, 3, 4, 5, 6})
+    //   require.True(t, ok)
+    //   require.Equal(t, []byte("coin"), coin)
+    // 
+    //   fmt.Printf("%T\n", trie.root)
+    //   ext, ok := trie.root.(*ExtensionNode)
+    //   require.True(t, ok)
+    //   branch, ok := ext.Next.(*BranchNode)
+    //   require.True(t, ok)
+    //   leaf, ok := branch.Branches[0].(*LeafNode)
+    //   require.True(t, ok)
+    // 
+    //   hexEqual(t, "c37ec985b7a88c2c62beb268750efe657c36a585beb435eb9f43b839846682ce", leaf.Hash())
+    //   hexEqual(t, "ddc882350684636f696e8080808080808080808080808080808476657262", branch.Serialize())
+    //   hexEqual(t, "d757709f08f7a81da64a969200e59ff7e6cd6b06674c3f668ce151e84298aa79", branch.Hash())
+    //   hexEqual(t, "64d67c5318a714d08de6958c0e63a05522642f3f1087c6fd68a97837f203d359", ext.Hash())
+    // }
+    #[test]
+    fn test_put_2_pairs() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"verb");
+        trie.put(&[1, 2, 3, 4, 5, 6], b"coin");
+
+        assert_eq!(trie.get(&[1, 2, 3, 4]), Some(b"verb".to_vec()));
+        assert_eq!(trie.get(&[1, 2, 3, 4, 5, 6]), Some(b"coin".to_vec()));
+
+        assert!(matches!(trie.root, Node::Extension(ext) => {
+            matches!(ext.next, Node::Branch(branch) => {
+                matches!(branch.branches[0], Node::Leaf(leaf) => {
+                    hex_equal("c37ec985b7a88c2c62beb268750efe657c36a585beb435eb9f43b839846682ce", leaf.hash());
+                    hex_equal("ddc882350684636f696e8080808080808080808080808080808476657262", branch.serialize());
+                    hex_equal("d757709f08f7a81da64a969200e59ff7e6cd6b06674c3f668ce151e84298aa79", branch.hash());
+                    hex_equal("64d67c5318a714d08de6958c0e63a05522642f3f1087c6fd68a97837f203d359", ext.hash());
+                    true
+                })
+            })
+        }));
+    }
+
+    // func TestPut(t *testing.T) {
+    //   trie := NewTrie()
+    //   require.Equal(t, EmptyNodeHash, trie.Hash())
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   ns := NewLeafNodeFromBytes([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   require.Equal(t, ns.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put() {
+        let mut trie = Trie::new();
+        assert_eq!(EmptyNodeHash, trie.hash());
+
+        trie.put(&[1, 2, 3, 4], b"hello");
+        let ns = LeafNode::from_bytes(&[1, 2, 3, 4], b"hello");
+        assert_eq!(ns.hash(), trie.hash());
+    }
+
+    // func TestPutLeafShorter(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   trie.Put([]byte{1, 2, 3}, []byte("world"))
+    // 
+    //   leaf := NewLeafNodeFromNibbles([]Nibble{4}, []byte("hello"))
+    // 
+    //   branch := NewBranchNode()
+    //   branch.SetBranch(Nibble(0), leaf)
+    //   branch.SetValue([]byte("world"))
+    // 
+    //   ext := NewExtensionNode([]Nibble{0, 1, 0, 2, 0, 3}, branch)
+    // 
+    //   require.Equal(t, ext.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_leaf_shorter() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello");
+        trie.put(&[1, 2, 3], b"world");
+
+        let leaf = LeafNode::from_nibbles(&[4], b"hello");
+
+        let mut branch = BranchNode::new();
+        branch.set_branch(Nibble(0), Node::Leaf(leaf));
+        branch.set_value(b"world");
+
+        let ext = ExtensionNode::new(&[0, 1, 0, 2, 0, 3], Node::Branch(branch));
+
+        assert_eq!(ext.hash(), trie.hash());
+    }
+
+    // func TestPutLeafAllMatched(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("world"))
+    // 
+    //   ns := NewLeafNodeFromBytes([]byte{1, 2, 3, 4}, []byte("world"))
+    //   require.Equal(t, ns.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_leaf_all_matched() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello");
+        trie.put(&[1, 2, 3, 4], b"world");
+
+        let ns = LeafNode::from_bytes(&[1, 2, 3, 4], b"world");
+        assert_eq!(ns.hash(), trie.hash());
+    }
+
+    // func TestPutLeafMore(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   trie.Put([]byte{1, 2, 3, 4, 5, 6}, []byte("world"))
+    // 
+    //   leaf := NewLeafNodeFromNibbles([]Nibble{5, 0, 6}, []byte("world"))
+    // 
+    //   branch := NewBranchNode()
+    //   branch.SetValue([]byte("hello"))
+    //   branch.SetBranch(Nibble(0), leaf)
+    // 
+    //   ext := NewExtensionNode([]Nibble{0, 1, 0, 2, 0, 3, 0, 4}, branch)
+    // 
+    //   require.Equal(t, ext.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_leaf_more() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello");
+        trie.put(&[1, 2, 3, 4, 5, 6], b"world");
+
+        let leaf = LeafNode::from_nibbles(&[5, 0, 6], b"world");
+
+        let mut branch = BranchNode::new();
+        branch.set_value(b"hello");
+        branch.set_branch(Nibble(0), Node::Leaf(leaf));
+
+        let ext = ExtensionNode::new(&[0, 1, 0, 2, 0, 3, 0, 4], Node::Branch(branch));
+
+        assert_eq!(ext.hash(), trie.hash());
+    }
+
+    // func TestPutOrder(t *testing.T) {
+    //   trie1, trie2 := NewTrie(), NewTrie()
+    // 
+    //   trie1.Put([]byte{1, 2, 3, 4, 5, 6}, []byte("world"))
+    //   trie1.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    // 
+    //   trie2.Put([]byte{1, 2, 3, 4}, []byte("hello"))
+    //   trie2.Put([]byte{1, 2, 3, 4, 5, 6}, []byte("world"))
+    // 
+    //   require.Equal(t, trie1.Hash(), trie2.Hash())
+    // }
+    #[test]
+    fn test_put_order() {
+        let mut trie1 = Trie::new();
+        let mut trie2 = Trie::new();
+
+        trie1.put(&[1, 2, 3, 4, 5, 6], b"world");
+        trie1.put(&[1, 2, 3, 4], b"hello");
+
+        trie2.put(&[1, 2, 3, 4], b"hello");
+        trie2.put(&[1, 2, 3, 4, 5, 6], b"world");
+
+        assert_eq!(trie1.hash(), trie2.hash());
+    }
+
+    // Before put:
+    //
+    //               ┌───────────────────────────┐
+    //               │  Extension Node           │
+    //               │  Path: [0, 1, 0, 2, 0, 3] │
+    //               └────────────┬──────────────┘
+    //                            │
+    //    ┌───────────────────────┴──────────────────┐
+    //    │                   Branch Node            │
+    //    │   [0]         ...          [5]           │
+    //    └────┼────────────────────────┼────────────┘
+    //         │                        │
+    //         │                        │
+    //         │                        │
+    //         │                        │
+    //   ┌───────┴──────────┐   ┌─────────┴─────────┐
+    //   │  Leaf Node       │   │  Leaf Node        │
+    //   │  Path: [4]       │   │  Path: [0]        │
+    //   │  Value: "hello1" │   │  Value: "hello2"  │
+    //   └──────────────────┘   └───────────────────┘
+    //
+    // After put([]byte{[1, 2, 3]}, "world"):
+    //               ┌───────────────────────────┐
+    //               │  Extension Node           │
+    //               │  Path: [0, 1, 0, 2, 0, 3] │
+    //               └────────────┬──────────────┘
+    //                            │
+    //    ┌───────────────────────┴────────────────────────┐
+    //    │                   Branch Node                  │
+    //    │   [0]         ...          [5]  value: "world" │
+    //    └────┼────────────────────────┼──────────────────┘
+    //         │                        │
+    //         │                        │
+    //         │                        │
+    //         │                        │
+    //   ┌───────┴──────────┐   ┌─────────┴─────────┐
+    //   │  Leaf Node       │   │  Leaf Node        │
+    //   │  Path: [4]       │   │  Path: [0]        │
+    //   │  Value: "hello1" │   │  Value: "hello2"  │
+    //   └──────────────────┘   └───────────────────┘
+    // func TestPutExtensionShorterAllMatched(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello1"))
+    //   trie.Put([]byte{1, 2, 3, 5}, []byte("hello2"))
+    //   trie.Put([]byte{1, 2, 3}, []byte("world"))
+    // 
+    //   leaf1 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello1"))
+    //   leaf2 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello2"))
+    // 
+    //   branch1 := NewBranchNode()
+    //   branch1.SetBranch(Nibble(4), leaf1)
+    //   branch1.SetBranch(Nibble(5), leaf2)
+    // 
+    //   branch2 := NewBranchNode()
+    //   branch2.SetValue([]byte("world"))
+    //   branch2.SetBranch(Nibble(0), branch1)
+    // 
+    //   ext := NewExtensionNode([]Nibble{0, 1, 0, 2, 0, 3}, branch2)
+    // 
+    //   require.Equal(t, ext.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_extension_shorter_all_matched() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello1");
+        trie.put(&[1, 2, 3, 5], b"hello2");
+        trie.put(&[1, 2, 3], b"world");
+
+        let leaf1 = LeafNode::from_nibbles(&[], b"hello1");
+        let leaf2 = LeafNode::from_nibbles(&[], b"hello2");
+
+        let mut branch1 = BranchNode::new();
+        branch1.set_branch(Nibble(4), Node::Leaf(leaf1));
+        branch1.set_branch(Nibble(5), Node::Leaf(leaf2));
+
+        let mut branch2 = BranchNode::new();
+        branch2.set_value(b"world");
+        branch2.set_branch(Nibble(0), Node::Branch(branch1));
+
+        let ext = ExtensionNode::new(&[0, 1, 0, 2, 0, 3], Node::Branch(branch2));
+
+        assert_eq!(ext.hash(), trie.hash());
+    }
+
+    // func TestPutExtensionShorterPartialMatched(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello1"))
+    //   trie.Put([]byte{1, 2, 3, 5}, []byte("hello2"))
+    //   trie.Put([]byte{1, 2, 5}, []byte("world"))
+    // 
+    //   leaf1 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello1"))
+    //   leaf2 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello2"))
+    // 
+    //   branch1 := NewBranchNode()
+    //   branch1.SetBranch(Nibble(4), leaf1)
+    //   branch1.SetBranch(Nibble(5), leaf2)
+    // 
+    //   ext1 := NewExtensionNode([]Nibble{0}, branch1)
+    // 
+    //   branch2 := NewBranchNode()
+    //   branch2.SetBranch(Nibble(3), ext1)
+    //   leaf3 := NewLeafNodeFromNibbles([]Nibble{}, []byte("world"))
+    //   branch2.SetBranch(Nibble(5), leaf3)
+    // 
+    //   ext2 := NewExtensionNode([]Nibble{0, 1, 0, 2, 0}, branch2)
+    // 
+    //   require.Equal(t, ext2.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_extension_shorter_partial_matched() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello1");
+        trie.put(&[1, 2, 3, 5], b"hello2");
+        trie.put(&[1, 2, 5], b"world");
+
+        let leaf1 = LeafNode::from_nibbles(&[], b"hello1");
+        let leaf2 = LeafNode::from_nibbles(&[], b"hello2");
+
+        let mut branch1 = BranchNode::new();
+        branch1.set_branch(Nibble(4), Node::Leaf(leaf1));
+        branch1.set_branch(Nibble(5), Node::Leaf(leaf2));
+
+        let ext1 = ExtensionNode::new(&[0], Node::Branch(branch1));
+
+        let mut branch2 = BranchNode::new();
+        branch2.set_branch(Nibble(3), Node::Extension(ext1));
+        let leaf3 = LeafNode::from_nibbles(&[], b"world");
+        branch2.set_branch(Nibble(5), Node::Leaf(leaf3));
+
+        let ext2 = ExtensionNode::new(&[0, 1, 0, 2, 0], Node::Branch(branch2));
+
+        assert_eq!(ext2.hash(), trie.hash());
+    }
+
+    // func TestPutExtensionShorterZeroMatched(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello1"))
+    //   trie.Put([]byte{1, 2, 3, 5}, []byte("hello2"))
+    //   trie.Put([]byte{1 << 4, 2, 5}, []byte("world"))
+    // 
+    //   leaf1 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello1"))
+    //   leaf2 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello2"))
+    // 
+    //   branch1 := NewBranchNode()
+    //   branch1.SetBranch(Nibble(4), leaf1)
+    //   branch1.SetBranch(Nibble(5), leaf2)
+    // 
+    //   ext1 := NewExtensionNode([]Nibble{1, 0, 2, 0, 3, 0}, branch1)
+    // 
+    //   branch2 := NewBranchNode()
+    //   branch2.SetBranch(Nibble(0), ext1)
+    //   leaf3 := NewLeafNodeFromNibbles([]Nibble{0, 0, 2, 0, 5}, []byte("world"))
+    //   branch2.SetBranch(Nibble(1), leaf3)
+    // 
+    //   require.Equal(t, branch2.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_extension_shorter_zero_matched() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello1");
+        trie.put(&[1, 2, 3, 5], b"hello2");
+        trie.put(&[1 << 4, 2, 5], b"world");
+
+        let leaf1 = LeafNode::from_nibbles(&[], b"hello1");
+        let leaf2 = LeafNode::from_nibbles(&[], b"hello2");
+
+        let mut branch1 = BranchNode::new();
+        branch1.set_branch(Nibble(4), Node::Leaf(leaf1));
+        branch1.set_branch(Nibble(5), Node::Leaf(leaf2));
+
+        let ext1 = ExtensionNode::new(&[1, 0, 2, 0, 3, 0], Node::Branch(branch1));
+
+        let mut branch2 = BranchNode::new();
+        branch2.set_branch(Nibble(0), Node::Extension(ext1));
+        let leaf3 = LeafNode::from_nibbles(&[0, 0, 2, 0, 5], b"world");
+        branch2.set_branch(Nibble(1), Node::Leaf(leaf3));
+
+        assert_eq!(branch2.hash(), trie.hash());
+    }
+
+    // func TestPutExtensionAllMatched(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello1"))
+    //   trie.Put([]byte{1, 2, 3, 5 << 4}, []byte("hello2"))
+    //   trie.Put([]byte{1, 2, 3}, []byte("world"))
+    // 
+    //   leaf1 := NewLeafNodeFromNibbles([]Nibble{4}, []byte("hello1"))
+    //   leaf2 := NewLeafNodeFromNibbles([]Nibble{0}, []byte("hello2"))
+    // 
+    //   branch := NewBranchNode()
+    //   branch.SetBranch(Nibble(0), leaf1)
+    //   branch.SetBranch(Nibble(5), leaf2)
+    //   branch.SetValue([]byte("world"))
+    // 
+    //   ext := NewExtensionNode([]Nibble{0, 1, 0, 2, 0, 3}, branch)
+    // 
+    //   require.Equal(t, ext.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_extension_all_matched() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello1");
+        trie.put(&[1, 2, 3, 5 << 4], b"hello2");
+        trie.put(&[1, 2, 3], b"world");
+
+        let leaf1 = LeafNode::from_nibbles(&[4], b"hello1");
+        let leaf2 = LeafNode::from_nibbles(&[0], b"hello2");
+
+        let mut branch = BranchNode::new();
+        branch.set_branch(Nibble(0), Node::Leaf(leaf1));
+        branch.set_branch(Nibble(5), Node::Leaf(leaf2));
+        branch.set_value(b"world");
+
+        let ext = ExtensionNode::new(&[0, 1, 0, 2, 0, 3], Node::Branch(branch));
+
+        assert_eq!(ext.hash(), trie.hash());
+    }
+
+    
+    // func TestPutExtensionMore(t *testing.T) {
+    //   trie := NewTrie()
+    //   trie.Put([]byte{1, 2, 3, 4}, []byte("hello1"))
+    //   trie.Put([]byte{1, 2, 3, 5}, []byte("hello2"))
+    //   trie.Put([]byte{1, 2, 3, 6}, []byte("world"))
+    // 
+    //   leaf1 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello1"))
+    //   leaf2 := NewLeafNodeFromNibbles([]Nibble{}, []byte("hello2"))
+    //   leaf3 := NewLeafNodeFromNibbles([]Nibble{}, []byte("world"))
+    // 
+    //   branch := NewBranchNode()
+    //   branch.SetBranch(Nibble(4), leaf1)
+    //   branch.SetBranch(Nibble(5), leaf2)
+    //   branch.SetBranch(Nibble(6), leaf3)
+    // 
+    //   ext := NewExtensionNode([]Nibble{0, 1, 0, 2, 0, 3, 0}, branch)
+    // 
+    //   require.Equal(t, ext.Hash(), trie.Hash())
+    // }
+    #[test]
+    fn test_put_extension_more() {
+        let mut trie = Trie::new();
+        trie.put(&[1, 2, 3, 4], b"hello1");
+        trie.put(&[1, 2, 3, 5], b"hello2");
+        trie.put(&[1, 2, 3, 6], b"world");
+
+        let leaf1 = LeafNode::from_nibbles(&[], b"hello1");
+        let leaf2 = LeafNode::from_nibbles(&[], b"hello2");
+        let leaf3 = LeafNode::from_nibbles(&[], b"world");
+
+        let mut branch = BranchNode::new();
+        branch.set_branch(Nibble(4), Node::Leaf(leaf1));
+        branch.set_branch(Nibble(5), Node::Leaf(leaf2));
+        branch.set_branch(Nibble(6), Node::Leaf(leaf3));
+
+        let ext = ExtensionNode::new(&[0, 1, 0, 2, 0, 3, 0], Node::Branch(branch));
+
+        assert_eq!(ext.hash(), trie.hash());
+    }
+}
+
 // nibbles.go
 
 // type Nibble byte
@@ -726,6 +1274,52 @@ impl ExtensionNode {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nibble::Nibble;
+    use crate::branch_node::BranchNode;
+    use crate::extension_node::ExtensionNode;
+    use crate::leaf_node::LeafNode;
+    use hex::FromHex;
+
+    // func TestExtensionNode(t *testing.T) {
+    //   nibbles, value := []byte{5, 0, 6}, []byte("coin")
+    //   leaf, err := NewLeafNodeFromNibbleBytes(nibbles, value)
+    //   require.NoError(t, err)
+    // 
+    //   b := NewBranchNode()
+    //   b.SetBranch(0, leaf)
+    //   b.SetValue([]byte("verb")) // set the value for verb
+    // 
+    //   ns, err := FromNibbleBytes([]byte{0, 1, 0, 2, 0, 3, 0, 4})
+    //   require.NoError(t, err)
+    //   e := NewExtensionNode(ns, b)
+    //   require.Equal(t, "e4850001020304ddc882350684636f696e8080808080808080808080808080808476657262", fmt.Sprintf("%x", e.Serialize()))
+    //   require.Equal(t, "64d67c5318a714d08de6958c0e63a05522642f3f1087c6fd68a97837f203d359", fmt.Sprintf("%x", e.Hash()))
+    // }
+    #[test]
+    fn test_extension_node() {
+        let nibbles: &[u8] = &[5, 0, 6];
+        let value: &[u8] = b"coin";
+
+        let leaf = LeafNode::new_from_nibble_bytes(nibbles, value).unwrap();
+
+        let b = BranchNode::new();
+        b.set_branch(Nibble::from_byte(0), Box::new(leaf));
+        b.set_value(b"verb".to_vec());
+
+        let ns = Nibble::from_nibble_bytes(&[0, 1, 0, 2, 0, 3, 0, 4]).unwrap();
+        let e = ExtensionNode::new(ns, Box::new(b));
+
+        let expected_serialize: [u8; 20] = FromHex::from_hex("e4850001020304ddc882350684636f696e8080808080808080808080808080808476657262").unwrap();
+        assert_eq!(e.serialize(), expected_serialize);
+
+        let expected_hash: [u8; 32] = FromHex::from_hex("64d67c5318a714d08de6958c0e63a05522642f3f1087c6fd68a97837f203d359").unwrap();
+        assert_eq!(e.hash(), expected_hash);
+    }
+}
+
 // branch.go
 
 use std::cell::RefCell;
@@ -863,6 +1457,47 @@ impl BranchNode {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trie::{BranchNode, LeafNode, Nibble, Node, Trie};
+
+    // func TestBranch(t *testing.T) {
+    //   nibbles, value := []byte{5, 0, 6}, []byte("coin")
+    //   leaf, err := NewLeafNodeFromNibbleBytes(nibbles, value)
+    //   require.NoError(t, err)
+    // 
+    //   b := NewBranchNode()
+    //   b.SetBranch(0, leaf)
+    //   b.SetValue([]byte("verb")) // set the value for verb
+    // 
+    //   require.Equal(t, "ddc882350684636f696e8080808080808080808080808080808476657262",
+    //     fmt.Sprintf("%x", b.Serialize()))
+    //   require.Equal(t, "d757709f08f7a81da64a969200e59ff7e6cd6b06674c3f668ce151e84298aa79",
+    //     fmt.Sprintf("%x", b.Hash()))
+    // 
+    // }
+    #[test]
+    fn test_branch() {
+        let nibbles = vec![5, 0, 6];
+        let value = b"coin";
+        let leaf = LeafNode::from_nibble_bytes(&nibbles, value).unwrap();
+
+        let mut b = BranchNode::new();
+        b.set_branch(Nibble(0), Node::Leaf(leaf));
+        b.set_value(b"verb");
+
+        assert_eq!(
+            "ddc882350684636f696e8080808080808080808080808080808476657262",
+            hex::encode(b.serialize())
+        );
+        assert_eq!(
+            "d757709f08f7a81da64a969200e59ff7e6cd6b06674c3f668ce151e84298aa79",
+            hex::encode(b.hash())
+        );
+    }
+}
+
 // leaf.go
 
 use tiny_keccak::{Keccak};
@@ -961,6 +1596,145 @@ impl LeafNode {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trie::{FromBytes, ToBytes, ToPrefixed};
+    use ethereum_types::H256;
+    use rlp::RlpStream;
+
+    // func printEachCalculationSteps(key, value []byte, isLeaf bool) map[string]string {
+    //   hexs := make(map[string]string)
+    //   hexs["key in nibbles"] = fmt.Sprintf("%x", FromBytes(key))
+    //   hexs["key in nibbles, and prefixed"] = fmt.Sprintf("%x", ToPrefixed(FromBytes(key), isLeaf))
+    //   hexs["key in nibbles, and prefixed, and convert back to buffer"] =
+    //     fmt.Sprintf("%x", ToBytes(ToPrefixed(FromBytes(key), isLeaf)))
+    //   beforeRLP := [][]byte{ToBytes(ToPrefixed(FromBytes(key), isLeaf)), value}
+    //   hexs["beforeRLP"] = fmt.Sprintf("%x", beforeRLP)
+    //   afterRLP, err := rlp.EncodeToBytes(beforeRLP)
+    //   if err != nil {
+    //     panic(err)
+    //   }
+    //   hexs["afterRLP"] = fmt.Sprintf("%x", afterRLP)
+    //   hexs["hash"] = fmt.Sprintf("%x", crypto.Keccak256(afterRLP))
+    //   return hexs
+    // }
+    fn print_each_calculation_steps(key: &[u8], value: &[u8], is_leaf: bool) -> Vec<(String, String)> {
+        let mut steps: Vec<(String, String)> = Vec::new();
+        steps.push(("key in nibbles".to_owned(), hex::encode(FromBytes::from_bytes(key))));
+        steps.push(("key in nibbles, and prefixed".to_owned(), hex::encode(ToPrefixed::to_prefixed(FromBytes::from_bytes(key), is_leaf))));
+        steps.push(("key in nibbles, and prefixed, and convert back to buffer".to_owned(), hex::encode(ToBytes::to_bytes(ToPrefixed::to_prefixed(FromBytes::from_bytes(key), is_leaf)))));
+        let before_rlp = vec![ToBytes::to_bytes(ToPrefixed::to_prefixed(FromBytes::from_bytes(key), is_leaf)), value.to_vec()];
+        steps.push(("beforeRLP".to_owned(), hex::encode(&before_rlp)));
+        let mut rlp_stream = RlpStream::new();
+        rlp_stream.append(&before_rlp);
+        let after_rlp = rlp_stream.out().to_vec();
+        steps.push(("afterRLP".to_owned(), hex::encode(&after_rlp)));
+        steps.push(("hash".to_owned(), hex::encode(H256::from_slice(&crypto::keccak256(&after_rlp)))));
+        steps
+    }
+
+    // func TestLeafHash(t *testing.T) {
+    //   require.Equal(t, "01020304", fmt.Sprintf("%x", []byte{1, 2, 3, 4}))
+    //   require.Equal(t, "76657262", fmt.Sprintf("%x", []byte("verb")))
+    // 
+    //   // "buffer to nibbles
+    //   require.Equal(t, "0001000200030004", fmt.Sprintf("%x", FromBytes([]byte{1, 2, 3, 4})))
+    // 
+    //   // ToPrefixed
+    //   require.Equal(t, "02000001000200030004", fmt.Sprintf("%x", ToPrefixed(FromBytes([]byte{1, 2, 3, 4}), true)))
+    // 
+    //   // ToBuffer
+    //   require.Equal(t, "2001020304", fmt.Sprintf("%x", ToBytes(ToPrefixed(FromBytes([]byte{1, 2, 3, 4}), true))))
+    // 
+    //   require.Equal(t, "636f696e", fmt.Sprintf("%x", []byte("coin")))
+    // }
+    #[test]
+    fn test_leaf_hash() {
+        assert_eq!(hex::encode(&[1, 2, 3, 4]), "01020304");
+        assert_eq!(hex::encode(b"verb"), "76657262");
+
+        // "buffer to nibbles
+        assert_eq!(hex::encode(FromBytes::from_bytes(&[1, 2, 3, 4])), "0001000200030004");
+
+        // ToPrefixed
+        assert_eq!(hex::encode(ToPrefixed::to_prefixed(FromBytes::from_bytes(&[1, 2, 3, 4]), true)), "02000001000200030004");
+
+        // ToBuffer
+        assert_eq!(hex::encode(ToBytes::to_bytes(ToPrefixed::to_prefixed(FromBytes::from_bytes(&[1, 2, 3, 4]), true))), "2001020304");
+
+        assert_eq!(hex::encode(b"coin"), "636f696e");
+    }
+
+    // func Test3Nibbles(t *testing.T) {
+    //   key, value := []byte{5, 0, 6}, []byte("coin")
+    //   hexs := printEachCalculationSteps(key, value, true)
+    //   fmt.Printf("key_hex: %x\n", key)
+    //   fmt.Printf("value_hex: %x\n", value)
+    //   fmt.Printf("key in nibbles: %s\n", hexs["key in nibbles"])
+    //   fmt.Printf("key in nibbles, and prefixed: %s\n", hexs["key in nibbles, and prefixed"])
+    //   fmt.Printf("key in nibbles, and prefixed, and convert back to buffer: %s\n",
+    //     hexs["key in nibbles, and prefixed, and convert back to buffer"])
+    //   fmt.Printf("beforeRLP: %s\n", hexs["beforeRLP"])
+    //   fmt.Printf("afterRLP: %s\n", hexs["afterRLP"])
+    //   fmt.Printf("hash: %s\n", hexs["hash"])
+    //   require.Equal(t, "c5442690f038fcc0b8b8949b4f5149db8c0bee917be6355dc2db1855e9675700",
+    //     hexs["hash"])
+    // }
+    #[test]
+    fn test_3_nibbles() {
+        let key = &[5, 0, 6];
+        let value = b"coin";
+        let hexs = print_each_calculation_steps(key, value, true);
+        println!("key_hex: {:?}", key);
+        println!("value_hex: {:?}", value);
+        println!("key in nibbles: {:?}", hexs[0].1);
+        println!("key in nibbles, and prefixed: {:?}", hexs[1].1);
+        println!("key in nibbles, and prefixed, and convert back to buffer: {:?}", hexs[2].1);
+        println!("beforeRLP: {:?}", hexs[3].1);
+        println!("afterRLP: {:?}", hexs[4].1);
+        println!("hash: {:?}", hexs[5].1);
+        assert_eq!(
+            hexs[5].1,
+            "c5442690f038fcc0b8b8949b4f5149db8c0bee917be6355dc2db1855e9675700"
+        );
+    }
+
+    // func TestLeafNode(t *testing.T) {
+    //   nibbles, value := []byte{1, 2, 3, 4}, []byte("verb")
+    //   l := NewLeafNodeFromBytes(nibbles, value)
+    //   require.Equal(t, "2bafd1eef58e8707569b7c70eb2f91683136910606ba7e31d07572b8b67bf5c6", fmt.Sprintf("%x", l.Hash()))
+    // }
+    #[test]
+    fn test_leaf_node() {
+        let nibbles = &[1, 2, 3, 4];
+        let value = b"verb";
+        let l = LeafNode::new_from_bytes(nibbles, value);
+        assert_eq!(
+            hex::encode(l.hash().as_bytes()),
+            "2bafd1eef58e8707569b7c70eb2f91683136910606ba7e31d07572b8b67bf5c6"
+        );
+    }
+
+    // func TestLeafNode2(t *testing.T) {
+    //   // t.Skip()
+    //   nibbles, value := []byte{5, 0, 6}, []byte("coin")
+    //   l, err := NewLeafNodeFromNibbleBytes(nibbles, value)
+    //   require.NoError(t, err)
+    //   require.Equal(t, "c37ec985b7a88c2c62beb268750efe657c36a585beb435eb9f43b839846682ce", fmt.Sprintf("%x", l.Hash()))
+    // }
+    #[test]
+    fn test_leaf_node_2() {
+        let nibbles = &[5, 0, 6];
+        let value = b"coin";
+        let l = LeafNode::new_from_nibble_bytes(nibbles, value).unwrap();
+        assert_eq!(
+            hex::encode(l.hash().as_bytes()),
+            "c37ec985b7a88c2c62beb268750efe657c36a585beb435eb9f43b839846682ce"
+        );
+    }
+}
+
 // empty.go
 
 extern crate hex;
@@ -982,3 +1756,31 @@ pub fn is_empty_node(node: &Option<Box<dyn Node>>) -> bool {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hex::FromHex;
+    use rlp::RlpStream;
+
+    // func TestEmptyNodeHash(t *testing.T) {
+    //   emptyRLP, err := rlp.EncodeToBytes(EmptyNodeRaw)
+    //   require.NoError(t, err)
+    //   require.Equal(t, EmptyNodeHash, Keccak256(emptyRLP))
+    // }
+    #[test]
+    fn test_empty_node_hash() {
+        let empty_node_raw: [u8; 0] = [];
+        let empty_node_hash: [u8; 32] = FromHex::from_hex("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap();
+
+        let mut rlp_stream = RlpStream::new();
+        rlp_stream.append_raw(&empty_node_raw, 0);
+        let empty_rlp = rlp_stream.out();
+
+        let mut keccak = Keccak::new_keccak256();
+        let mut hash = [0u8; 32];
+        keccak.update(&empty_rlp);
+        keccak.finalize(&mut hash);
+
+        assert_eq!(hash, empty_node_hash);
+    }
+}
